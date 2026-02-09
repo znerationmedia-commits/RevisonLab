@@ -4,6 +4,40 @@ import prisma from '../db.js';
 
 const router = express.Router();
 
+// Simple DB Connection Check
+router.get('/db-check', async (req, res) => {
+    try {
+        console.log('[TEST] Checking DB connection...');
+        // Try a simple query
+        const userCount = await prisma.user.count();
+        console.log(`[TEST] DB Connection Successful. User count: ${userCount}`);
+
+        // Also check if we can read environment variables
+        const envCheck = {
+            DATABASE_URL_SET: !!process.env.DATABASE_URL,
+            JWT_SECRET_SET: !!process.env.JWT_SECRET,
+            GEMINI_API_KEY_SET: !!process.env.GEMINI_API_KEY
+        };
+
+        res.json({
+            status: 'ok',
+            message: 'Database connection successful',
+            userCount,
+            env: envCheck
+        });
+    } catch (error: any) {
+        console.error('[TEST] DB Connection Failed:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Database connection failed',
+            error: error.message,
+            code: error.code,
+            meta: error.meta,
+            stack: error.stack
+        });
+    }
+});
+
 // Test endpoint to manually check and expire subscriptions
 router.get('/test-expiration', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
