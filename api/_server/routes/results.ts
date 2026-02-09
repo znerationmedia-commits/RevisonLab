@@ -1,7 +1,7 @@
 import express from 'express';
-import prisma from '../db';
-import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
-import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions';
+import prisma from '../db.js';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
+import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions.js';
 
 const router = express.Router();
 

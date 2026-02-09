@@ -1,7 +1,7 @@
 import express from 'express';
 import Stripe from 'stripe';
-import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
-import prisma from '../db';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
+import prisma from '../db.js';
 
 const router = express.Router();
 

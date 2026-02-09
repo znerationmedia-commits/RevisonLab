@@ -1,10 +1,10 @@
 import express from 'express';
-import prisma from '../db';
+import prisma from '../db.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // import fetch from 'node-fetch'; // DISABLED: Using native fetch (Node 18+)
 
-import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
-import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
+import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions.js';
 
 const router = express.Router();
 

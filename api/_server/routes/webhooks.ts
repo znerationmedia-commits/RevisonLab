@@ -1,6 +1,6 @@
 import express from 'express';
 import Stripe from 'stripe';
-import prisma from '../db';
+import prisma from '../db.js';
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');

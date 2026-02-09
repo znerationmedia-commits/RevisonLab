@@ -1,4 +1,4 @@
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Cleanup function to run on server startup.
