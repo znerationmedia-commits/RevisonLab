@@ -2,7 +2,53 @@ import express from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
 import prisma from '../db.js';
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 const router = express.Router();
+
+// ... (existing db-check code)
+
+// Simple AI Check
+router.get('/ai-check', async (req, res) => {
+    try {
+        console.log('[TEST] Checking Gemini API...');
+        const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({ status: 'error', message: 'GEMINI_API_KEY is not set' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        console.log('[TEST] Sending prompt to Gemini...');
+        const result = await model.generateContent("Reply with only the word 'OK'");
+        const response = await result.response;
+        const text = response.text();
+
+        console.log(`[TEST] Gemini Response: ${text}`);
+
+        res.json({
+            status: 'ok',
+            message: 'AI generation successful',
+            response: text,
+            model: "gemini-2.5-flash"
+        });
+    } catch (error: any) {
+        console.error('[TEST] AI Check Failed:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'AI generation failed',
+            error: error.message,
+            stack: error.stack,
+            details: error
+        });
+    }
+});
+
+// ... (existing test-expiration code)
+
+export default router;
 
 // Simple DB Connection Check
 router.get('/db-check', async (req, res) => {
