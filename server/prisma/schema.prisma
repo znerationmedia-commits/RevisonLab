@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Quest {
+  id        String   @id @default(uuid())
+  title     String
+  subject   String
+  grade     String
+  creatorId String
+  questions String   @db.Text
+  createdAt DateTime @default(now())
+  creator   User     @relation(fields: [creatorId], references: [id], map: "Quest_creatorId_fkey")
+  results   Result[]
+
+  @@index([creatorId], map: "Quest_creatorId_idx")
+}
+
+model Result {
+  id      String   @id @default(uuid())
+  userId  String
+  questId String?
+  score   Int
+  mode    String
+  date    DateTime @default(now())
+  quest   Quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
+  user    User     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
+
+  @@index([questId], map: "Result_questId_idx")
+  @@index([userId], map: "Result_userId_idx")
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique(map: "User_email_key")
+  password              String
+  name                  String
+  role                  String
+  xp                    Int       @default(0)
+  coins                 Int       @default(0)
+  isSubscribed          Boolean   @default(false)
+  isVerified            Boolean   @default(false)
+  verificationCode      String?
+  stripeCustomerId      String?
+  subscriptionInterval  String?   // 'month' or 'year'
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  questsPlayed          Int       @default(0)  // Track number of quests played (free tier limit: 1)
+  questsCreated         Int       @default(0)  // Track number of quests created (free tier limit: 1)
+  quests                Quest[]
+  results               Result[]
+}
+
+model PendingUser {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  name             String
+  role             String
+  verificationCode String
+  createdAt        DateTime @default(now())
+}
+
+model QuestionBank {
+  id            String   @id @default(uuid())
+  subject       String
+  grade         String // e.g., "Form 5", "Standard 6", "Year 10"
+  syllabus      String // e.g., "KSSM", "IGCSE"
+  topic         String
+  subtopic      String?
+  year          Int      // e.g., 2023
+  question      String   @db.Text
+  options       String   @db.Text // JSON string: ["A", "B", "C", "D"]
+  correctAnswer String
+  explanation   String   @db.Text
+  difficulty    String   // Easy, Medium, Hard
+  source        String?  // e.g., "SPM 2023 Paper 1"
+  createdAt     DateTime @default(now())
+
+  @@index([subject, grade, syllabus, topic])
+}
+
+model CourseSyllabus {
+  id        String   @id @default(uuid())
+  subject   String
+  grade     String
+  syllabus  String   // e.g., "KSSM", "IGCSE", "Singapore Math"
+  topics    String   @db.Text // JSON: ["Algebra", "Geometry"] or nested objects
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([subject, grade, syllabus])
+}

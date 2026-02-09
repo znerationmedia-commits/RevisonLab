@@ -28,7 +28,7 @@ router.post('/signup', async (req, res) => {
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Save to PendingUser instead of User
-        await (prisma as any).pendingUser.upsert({
+        await prisma.pendingUser.upsert({
             where: { email },
             update: {
                 name,
@@ -67,7 +67,7 @@ router.post('/verify', async (req, res) => {
     const { email, code } = req.body;
 
     try {
-        const pendingUser = await (prisma as any).pendingUser.findUnique({ where: { email } });
+        const pendingUser = await prisma.pendingUser.findUnique({ where: { email } });
         if (!pendingUser) {
             // Check if already verified
             const registeredUser = await prisma.user.findUnique({ where: { email } });
@@ -93,7 +93,7 @@ router.post('/verify', async (req, res) => {
         });
 
         // Delete from PendingUser
-        await (prisma as any).pendingUser.delete({ where: { email } });
+        await prisma.pendingUser.delete({ where: { email } });
 
         const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -123,7 +123,7 @@ router.post('/verify', async (req, res) => {
 router.post('/resend-otp', async (req, res) => {
     const { email } = req.body;
     try {
-        const pendingUser = await (prisma as any).pendingUser.findUnique({ where: { email } });
+        const pendingUser = await prisma.pendingUser.findUnique({ where: { email } });
 
         if (!pendingUser) {
             const user = await prisma.user.findUnique({ where: { email } });
@@ -132,7 +132,7 @@ router.post('/resend-otp', async (req, res) => {
         }
 
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        await (prisma as any).pendingUser.update({
+        await prisma.pendingUser.update({
             where: { email },
             data: { verificationCode }
         });
@@ -166,7 +166,7 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             // Check if they are pending verification
-            const pending = await (prisma as any).pendingUser.findUnique({ where: { email: loginId } });
+            const pending = await prisma.pendingUser.findUnique({ where: { email: loginId } });
             if (pending) {
                 return res.status(403).json({
                     error: 'Your email is not verified. Please check your email for the code.',
