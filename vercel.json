@@ -1,11 +1,6 @@
 {
     "version": 2,
-    "installCommand": "npm install && npx prisma generate",
     "builds": [
-        {
-            "src": "server/index.ts",
-            "use": "@vercel/node"
-        },
         {
             "src": "package.json",
             "use": "@vercel/static-build",
@@ -14,6 +9,12 @@
             }
         }
     ],
+    "functions": {
+        "server/index.ts": {
+            "memory": 1024,
+            "maxDuration": 10
+        }
+    },
     "routes": [
         {
             "src": "/api/(.*)",
