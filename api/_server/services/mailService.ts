@@ -43,7 +43,9 @@ export const sendOTPEmail = async (email: string, code: string) => {
     } catch (error) {
         console.error('Error sending email:', error);
         const logMsg = `[${new Date().toISOString()}] SENDER: ${process.env.GMAIL_USER} | RECIPIENT: ${email} | ERROR: ${error}\n`;
-        fs.appendFileSync('mail_errors.log', logMsg);
+        // REMOVED fs write (Vercel is read-only)
+        console.error(logMsg);
+        // fs.appendFileSync('mail_errors.log', logMsg);
         return false;
     }
 };

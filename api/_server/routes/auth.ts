@@ -49,7 +49,9 @@ router.post('/signup', async (req, res) => {
         const emailSent = await sendOTPEmail(email, verificationCode);
 
         // ALWAYS log to file for local testing help
-        require('fs').writeFileSync('otp_test_fallback.txt', `LAST OTP FOR ${email}: ${verificationCode}\n`);
+        // REMOVED fs write (Vercel is read-only). Log to console instead.
+        console.log(`[DEV OTP] LAST OTP FOR ${email}: ${verificationCode}`);
+        // require('fs').writeFileSync('otp_test_fallback.txt', `LAST OTP FOR ${email}: ${verificationCode}\n`);
 
         if (!emailSent) {
             return res.status(500).json({ error: 'Failed to send verification email. BUT I SAVED THE CODE to server/otp_test_fallback.txt for you to use!' });
