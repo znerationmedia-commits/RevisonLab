@@ -1,4 +1,4 @@
-import prisma from '../db';
+import prisma from '../db.js';
 
 /**
  * Middleware to check if user's subscription has expired
