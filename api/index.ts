@@ -3,13 +3,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Import routes - Vercel will bundle these automatically
-import authRoutes from '../server/routes/auth.js';
-import questRoutes from '../server/routes/quests.js';
-import resultRoutes from '../server/routes/results.js';
-import subscriptionRoutes from '../server/routes/subscription.js';
-import generationRoutes from '../server/routes/generation.js';
-import testRoutes from '../server/routes/test.js';
-import webhookRoutes from '../server/routes/webhooks.js';
+import authRoutes from '../server/routes/auth';
+import questRoutes from '../server/routes/quests';
+import resultRoutes from '../server/routes/results';
+import subscriptionRoutes from '../server/routes/subscription';
+import generationRoutes from '../server/routes/generation';
+import testRoutes from '../server/routes/test';
+import webhookRoutes from '../server/routes/webhooks';
 
 dotenv.config();
 
