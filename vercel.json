@@ -13,8 +13,16 @@
     "functions": {
         "api/index.ts": {
             "maxDuration": 10,
-            "includeFiles": "server/**",
-            "excludeFiles": "server/node_modules/**"
+            "includeFiles": [
+                "server/routes/**",
+                "server/services/**",
+                "server/utils/**",
+                "server/middleware/**",
+                "server/prisma/schema.prisma",
+                "server/db.ts",
+                "server/index.ts",
+                "server/package.json"
+            ]
         }
     }
 }
