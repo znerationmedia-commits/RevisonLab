@@ -1,2 +1,10 @@
 server/node_modules
 server/generated
+node_modules/.prisma/client/*-windows*
+node_modules/.prisma/client/*-debian*
+node_modules/.prisma/client/*-darwin*
+node_modules/**/*.map
+node_modules/**/*.md
+node_modules/**/*.txt
+node_modules/**/test/**
+node_modules/**/__tests__/**
