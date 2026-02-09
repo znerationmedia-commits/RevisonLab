@@ -19,7 +19,7 @@ model quest {
   creator   user     @relation(fields: [creatorId], references: [id], map: "Quest_creatorId_fkey")
   results   result[]
 
-  @@index([creatorId], map: "Quest_creatorId_fkey")
+  @@index([creatorId], map: "Quest_creatorId_idx")
 }
 
 model result {
@@ -32,8 +32,8 @@ model result {
   quest   quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
   user    user     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
 
-  @@index([questId], map: "Result_questId_fkey")
-  @@index([userId], map: "Result_userId_fkey")
+  @@index([questId], map: "Result_questId_idx")
+  @@index([userId], map: "Result_userId_idx")
 }
 
 model user {
