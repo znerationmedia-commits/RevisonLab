@@ -19,7 +19,15 @@ router.get('/ai-check', async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            requestOptions: {
+                customHeaders: {
+                    'Referer': 'https://revisionlab.vercel.app',
+                    'Referrer': 'https://revisionlab.vercel.app'
+                }
+            }
+        });
 
         console.log('[TEST] Sending prompt to Gemini...');
         const result = await model.generateContent("Reply with only the word 'OK'");
