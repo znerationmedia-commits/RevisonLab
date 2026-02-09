@@ -56,9 +56,15 @@ router.post('/signup', async (req, res) => {
         }
 
         res.json({ message: 'Verification code sent to your email', email });
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            error: 'Internal server error',
+            details: error.message,
+            code: error.code,
+            meta: error.meta,
+            stack: process.env.NODE_ENV === 'development' || true ? error.stack : undefined
+        });
     }
 });
 
