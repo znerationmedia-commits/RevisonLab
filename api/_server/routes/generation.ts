@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../db.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateAIContent } from '../utils/ai.js';
+// import { GoogleGenerativeAI } from '@google/generative-ai';
 // import fetch from 'node-fetch'; // DISABLED: Using native fetch (Node 18+)
 
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
@@ -262,7 +263,6 @@ router.post('/syllabus', async (req, res) => {
         OUTPUT FORMAT:
         {"topics": ["Chapter 1: Topic Name", "Chapter 2: Topic Name", ...]}`;
 
-        import { generateAIContent } from '../utils/ai.js';
         let responseText;
         try {
             responseText = await generateAIContent(prompt, "gemini-2.5-flash");
