@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "prisma generate && vite build",
+    "build": "prisma generate --schema=server/prisma/schema.prisma && vite build",
     "preview": "vite preview",
-    "vercel-build": "prisma generate && vite build",
+    "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && vite build",
     "start:all": "concurrently \"npm run dev\" \"cd server && npm run dev\"",
-    "postinstall": "cd server && npm install && npx prisma generate"
+    "postinstall": "prisma generate --schema=server/prisma/schema.prisma"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
