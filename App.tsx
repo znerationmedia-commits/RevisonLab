@@ -163,7 +163,9 @@ export default function App() {
       }
 
       try {
+        console.log("Fetching geolocation...");
         const res = await fetch('https://freeipapi.com/api/json');
+        if (!res.ok) throw new Error("API response not ok");
         const data = await res.json();
         const code = data.countryCode;
         console.log("Detected Country:", code);
@@ -177,6 +179,8 @@ export default function App() {
         }
       } catch (error) {
         console.error("Geolocation failed:", error);
+        // Default to MYR if API fails or is blocked by CORS
+        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 25 });
       }
     };
     detectCountry();
