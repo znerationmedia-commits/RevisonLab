@@ -1,10 +1,10 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
-import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions';
-import prisma from '../db';
-import { sendOTPEmail } from '../services/mailService';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
+import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions.js';
+import prisma from '../db.js';
+import { sendOTPEmail } from '../services/mailService.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyshouldbeenv';
