@@ -6,7 +6,7 @@
     "scripts": {
         "start": "ts-node index.ts",
         "dev": "nodemon --exec ts-node index.ts",
-        "build": "prisma generate --schema=../prisma/schema.prisma && tsc",
+        "build": "prisma generate --schema=../prisma/schema.prisma && tsc && cp -r generated dist/",
         "generate": "prisma generate --schema=../prisma/schema.prisma"
     },
     "dependencies": {
