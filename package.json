@@ -8,8 +8,8 @@
     "build": "prisma generate && vite build",
     "preview": "vite preview",
     "vercel-build": "prisma generate && vite build",
-    "postinstall": "prisma generate",
-    "start:all": "concurrently \"npm run dev\" \"cd server && npm run dev\""
+    "start:all": "concurrently \"npm run dev\" \"cd server && npm run dev\"",
+    "postinstall": "cd server && npm install && npx prisma generate"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
