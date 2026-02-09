@@ -247,9 +247,6 @@ router.post('/syllabus', async (req, res) => {
             return res.json(generateMockSyllabus());
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
         const prompt = `Generate a comprehensive list of syllabus topics for:
         - Subject: ${subject}
         - Grade Level: ${grade}
@@ -265,42 +262,61 @@ router.post('/syllabus', async (req, res) => {
         OUTPUT FORMAT:
         {"topics": ["Chapter 1: Topic Name", "Chapter 2: Topic Name", ...]}`;
 
+        import { generateAIContent } from '../utils/ai.js';
+        let responseText;
         try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const responseText = response.text();
-
-            if (!responseText) {
-                console.error("❌ [SYLLABUS] Empty AI response");
-                return res.json(generateMockSyllabus());
-            }
-
-            // Clean up markdown code blocks if present
-            let cleanedText = responseText.trim();
-            if (cleanedText.startsWith('```json')) {
-                cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-            } else if (cleanedText.startsWith('```')) {
-                cleanedText = cleanedText.replace(/```\n?/g, '');
-            }
-
-            const parsed = JSON.parse(cleanedText);
-            const topics = parsed.topics || [];
-            console.log(`✅ [SYLLABUS] Generated ${topics.length} topics with Gemini`);
-
-            // Cache it for future use
-            await prisma.courseSyllabus.upsert({
-                where: {
-                    subject_grade_syllabus: { subject, grade, syllabus }
-                },
-                update: { topics: JSON.stringify(topics) },
-                create: { subject, grade, syllabus, topics: JSON.stringify(topics) }
-            });
-
-            return res.json(topics);
+            responseText = await generateAIContent(prompt, "gemini-2.5-flash");
         } catch (apiError: any) {
             console.error(`❌ [SYLLABUS] Gemini API Error: ${apiError.message}`);
             return res.json(generateMockSyllabus());
         }
+
+        if (!responseText) {
+            console.error("❌ [SYLLABUS] Empty AI response");
+            return res.json(generateMockSyllabus());
+        }
+
+        // Clean up markdown code blocks if present
+        let cleanedText = responseText.trim();
+        if (cleanedText.startsWith('```json')) {
+            cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        } else if (cleanedText.startsWith('```')) {
+            cleanedText = cleanedText.replace(/```\n?/g, '');
+        }
+
+        let topics = [];
+        try {
+            const parsed = JSON.parse(cleanedText);
+            topics = parsed.topics || [];
+        } catch (e: any) {
+            console.error(`❌ [SYLLABUS] JSON Parse Error`, e);
+            // Try to extract JSON
+            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    topics = parsed.topics || [];
+                } catch { } // fail silent
+            }
+        }
+
+        if (topics.length === 0) {
+            console.warn("⚠️ [SYLLABUS] No topics parsed, returning mock");
+            return res.json(generateMockSyllabus());
+        }
+
+        console.log(`✅ [SYLLABUS] Generated ${topics.length} topics with Gemini`);
+
+        // Cache it for future use
+        await prisma.courseSyllabus.upsert({
+            where: {
+                subject_grade_syllabus: { subject, grade, syllabus }
+            },
+            update: { topics: JSON.stringify(topics) },
+            create: { subject, grade, syllabus, topics: JSON.stringify(topics) }
+        });
+
+        return res.json(topics);
     } catch (error) {
         console.error("❌ [SYLLABUS] Error:", error);
         // Fallback to mock if DB fails for some reason
