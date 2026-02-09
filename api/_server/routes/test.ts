@@ -48,7 +48,7 @@ router.get('/ai-check', async (req, res) => {
 
 // ... (existing test-expiration code)
 
-export default router;
+
 
 // Simple DB Connection Check
 router.get('/db-check', async (req, res) => {
