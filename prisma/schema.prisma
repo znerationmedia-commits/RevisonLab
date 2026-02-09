@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model quest {
+model Quest {
   id        String   @id @default(uuid())
   title     String
   subject   String
@@ -15,27 +15,27 @@ model quest {
   creatorId String
   questions String   @db.Text
   createdAt DateTime @default(now())
-  creator   user     @relation(fields: [creatorId], references: [id], map: "Quest_creatorId_fkey")
-  results   result[]
+  creator   User     @relation(fields: [creatorId], references: [id], map: "Quest_creatorId_fkey")
+  results   Result[]
 
   @@index([creatorId], map: "Quest_creatorId_idx")
 }
 
-model result {
+model Result {
   id      String   @id @default(uuid())
   userId  String
   questId String?
   score   Int
   mode    String
   date    DateTime @default(now())
-  quest   quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
-  user    user     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
+  quest   Quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
+  user    User     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
 
   @@index([questId], map: "Result_questId_idx")
   @@index([userId], map: "Result_userId_idx")
 }
 
-model user {
+model User {
   id                    String    @id @default(uuid())
   email                 String    @unique(map: "User_email_key")
   password              String
@@ -53,8 +53,8 @@ model user {
   cancelAtPeriodEnd     Boolean   @default(false)
   questsPlayed          Int       @default(0)  // Track number of quests played (free tier limit: 1)
   questsCreated         Int       @default(0)  // Track number of quests created (free tier limit: 1)
-  quests                quest[]
-  results               result[]
+  quests                Quest[]
+  results               Result[]
 }
 
 model PendingUser {

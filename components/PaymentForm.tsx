@@ -10,7 +10,13 @@ import { Card } from './Card';
 import { Button } from './Button';
 import { Loader2, AlertCircle, ShieldCheck, CreditCard } from 'lucide-react';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock');
+// Only load Stripe if not in mock mode
+const isMockMode = import.meta.env.VITE_STRIPE_MOCK_MODE === 'true';
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+const hasValidKey = stripeKey.startsWith('pk_test_') || stripeKey.startsWith('pk_live_');
+
+// Only create stripePromise if we have a valid key and not in mock mode
+const stripePromise = (!isMockMode && hasValidKey) ? loadStripe(stripeKey) : null;
 
 const CheckoutForm = ({ amount, onSuccess, onCancel }: { amount: number, onSuccess: () => void, onCancel: () => void }) => {
     const stripe = useStripe();

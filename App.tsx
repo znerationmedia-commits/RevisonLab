@@ -164,7 +164,8 @@ export default function App() {
 
       try {
         console.log("Fetching geolocation...");
-        const res = await fetch('https://freeipapi.com/api/json');
+        // Use backend proxy to avoid CORS issues on Vercel
+        const res = await fetch('/api/geolocation');
         if (!res.ok) throw new Error("API response not ok");
         const data = await res.json();
         const code = data.countryCode;
