@@ -6,7 +6,8 @@
     "scripts": {
         "start": "ts-node index.ts",
         "dev": "nodemon --exec ts-node index.ts",
-        "build": "prisma generate && tsc"
+        "build": "prisma generate --schema=../prisma/schema.prisma && tsc",
+        "generate": "prisma generate --schema=../prisma/schema.prisma"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
