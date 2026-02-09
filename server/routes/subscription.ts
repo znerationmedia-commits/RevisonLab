@@ -1,0 +1,432 @@
+import express from 'express';
+import Stripe from 'stripe';
+import { authenticateToken, AuthRequest } from '../middleware/authMiddleware';
+import prisma from '../db';
+
+const router = express.Router();
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+// Create Payment Intent for Embedded Form
+router.post('/create-payment-intent', authenticateToken, async (req: any, res: any) => {
+    const user = req.user;
+    const { amount, currency, interval } = req.body;
+
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const secretKey = process.env.STRIPE_SECRET_KEY || '';
+    const isMockMode = !secretKey.startsWith('sk_') || process.env.STRIPE_MOCK_MODE === 'true';
+
+    // Use provided amount/currency or default to RM 25.00
+    const finalAmount = amount || 2500;
+    const finalCurrency = (currency || 'myr').toLowerCase();
+
+    if (isMockMode) {
+        console.warn(`⚠️ STRIPE MOCK MODE ENABLED. Processing ${finalCurrency.toUpperCase()} ${finalAmount / 100} (${interval || 'month'})`);
+        return res.json({
+            clientSecret: `mock_secret_${Date.now()}`,
+            amount: finalAmount,
+            interval: interval || 'month',
+            isMock: true
+        });
+    }
+
+    try {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: finalAmount,
+            currency: finalCurrency,
+            payment_method_types: ['card'],
+            metadata: {
+                userId: user.id
+            }
+        });
+
+        res.json({
+            clientSecret: paymentIntent.client_secret,
+            amount: finalAmount,
+            isMock: false
+        });
+    } catch (error: any) {
+        console.error("Stripe Intent Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update Subscription after successful payment intent
+router.post('/confirm-payment', authenticateToken, async (req: any, res: any) => {
+    const { paymentIntentId, interval } = req.body;
+    const userId = req.user?.id;
+
+    if (!paymentIntentId || !userId) return res.status(400).json({ error: 'Missing data' });
+
+    // Handle Mock Confirmation
+    if (paymentIntentId.startsWith('mock_')) {
+        const startDate = new Date();
+        const endDate = new Date();
+
+        // Calculate end date based on interval
+        if (interval === 'year') {
+            endDate.setFullYear(endDate.getFullYear() + 1);
+        } else {
+            endDate.setMonth(endDate.getMonth() + 1);
+        }
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                isSubscribed: true,
+                subscriptionInterval: interval || 'month',
+                subscriptionStartDate: startDate,
+                subscriptionEndDate: endDate,
+                cancelAtPeriodEnd: false,
+                questsPlayed: 0,  // Reset counters on subscription
+                questsCreated: 0
+            }
+        });
+        return res.json({ success: true, isMock: true });
+    }
+
+    try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        if (paymentIntent.status === 'succeeded') {
+            const startDate = new Date();
+            const endDate = new Date();
+
+            // Calculate end date based on interval
+            if (interval === 'year') {
+                endDate.setFullYear(endDate.getFullYear() + 1);
+            } else {
+                endDate.setMonth(endDate.getMonth() + 1);
+            }
+
+            await prisma.user.update({
+                where: { id: userId },
+                data: {
+                    isSubscribed: true,
+                    subscriptionInterval: interval || 'month',
+                    subscriptionStartDate: startDate,
+                    subscriptionEndDate: endDate,
+                    cancelAtPeriodEnd: false,
+                    questsPlayed: 0,  // Reset counters on subscription
+                    questsCreated: 0
+                }
+            });
+            res.json({ success: true });
+        } else {
+            res.status(400).json({ error: 'Payment not successful' });
+        }
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: 'Confirmation failed' });
+    }
+});
+
+// Create Checkout Session (Original method)
+router.post('/checkout', authenticateToken, async (req: any, res: any) => {
+    const user = req.user;
+    const { amount, currency, interval } = req.body;
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const finalAmount = amount || 2500;
+    const finalCurrency = (currency || 'myr').toLowerCase();
+    const finalInterval = interval === 'year' ? 'year' : 'month';
+
+    try {
+        console.log(`Processing Real Payment: ${finalCurrency.toUpperCase()} ${finalAmount / 100} (${finalInterval})...`);
+
+        // ONE-TIME PAYMENT (No Auto-Renewal)
+        // Users must manually pay again when subscription expires
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: finalCurrency,
+                        product_data: {
+                            name: `RevisionLab Pro - ${finalInterval === 'year' ? '1 Year' : '1 Month'} Access`,
+                            description: `Unlimited Quizzes and Quest Creation for ${finalInterval === 'year' ? '1 year' : '1 month'}. No auto-renewal.`,
+                        },
+                        unit_amount: finalAmount,
+                        // REMOVED: recurring - this makes it a one-time payment
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment', // Changed from 'subscription' to 'payment'
+            success_url: `${FRONTEND_URL}?success=true&session_id={CHECKOUT_SESSION_ID}&interval=${finalInterval}`,
+            cancel_url: `${FRONTEND_URL}?canceled=true`,
+            client_reference_id: user.id,
+            metadata: {
+                userId: user.id,
+                interval: finalInterval // Store interval in metadata
+            }
+        });
+
+        res.json({ url: session.url });
+    } catch (error: any) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Verify Payment (Simple alternative to Webhook for local dev)
+router.get('/verify-session', authenticateToken, async (req: any, res: any) => {
+    const { session_id, interval } = req.query;
+    if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+
+    // Handle Simulated Session
+    if (String(session_id).startsWith('mock_session')) {
+        return res.json({ success: true, isSubscribed: true });
+    }
+
+    try {
+        const session = await stripe.checkout.sessions.retrieve(session_id as string);
+        if (session.payment_status === 'paid') {
+            const userId = req.user?.id;
+
+            // Activate subscription
+            if (userId) {
+                const startDate = new Date();
+                const endDate = new Date();
+
+                // Calculate end date based on interval
+                const subscriptionInterval = (session.metadata?.interval as string) || (interval as string) || 'month';
+                if (subscriptionInterval === 'year') {
+                    endDate.setFullYear(endDate.getFullYear() + 1);
+                } else {
+                    endDate.setMonth(endDate.getMonth() + 1);
+                }
+
+                await prisma.user.update({
+                    where: { id: userId },
+                    data: {
+                        isSubscribed: true,
+                        subscriptionInterval,
+                        subscriptionStartDate: startDate,
+                        subscriptionEndDate: endDate,
+                        cancelAtPeriodEnd: false,
+                        questsPlayed: 0,  // Reset counters on subscription
+                        questsCreated: 0
+                    }
+                });
+            }
+            res.json({ success: true, isSubscribed: true });
+        } else {
+            res.json({ success: false, status: session.payment_status });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// Cancel Subscription (Deferred - keeps access until period end)
+router.post('/cancel-subscription', authenticateToken, async (req: any, res: any) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const secretKey = process.env.STRIPE_SECRET_KEY || '';
+    const isMockMode = !secretKey.startsWith('sk_') || process.env.STRIPE_MOCK_MODE === 'true';
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (isMockMode) {
+            console.log(`[MOCK] Scheduling cancellation for user: ${userId} at period end`);
+            await prisma.user.update({
+                where: { id: userId },
+                data: { cancelAtPeriodEnd: true }
+            });
+
+            const endDate = user.subscriptionEndDate || new Date();
+            return res.json({
+                success: true,
+                message: `Subscription will cancel on ${endDate.toLocaleDateString()}`,
+                cancelAt: endDate
+            });
+        }
+
+        // Real Stripe Logic
+        let customerId = user.stripeCustomerId;
+
+        // If no customerId, try to find by email
+        if (!customerId) {
+            const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+            if (customers.data.length > 0) {
+                customerId = customers.data[0].id;
+            }
+        }
+
+        if (!customerId) {
+            // No Stripe customer, just mark for cancellation
+            await prisma.user.update({
+                where: { id: userId },
+                data: { cancelAtPeriodEnd: true }
+            });
+            const endDate = user.subscriptionEndDate || new Date();
+            return res.json({
+                success: true,
+                message: `Subscription will cancel on ${endDate.toLocaleDateString()}`,
+                cancelAt: endDate
+            });
+        }
+
+        // Get active subscriptions
+        const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1,
+        });
+
+        if (subscriptions.data.length > 0) {
+            // Update Stripe subscription to cancel at period end
+            await stripe.subscriptions.update(subscriptions.data[0].id, {
+                cancel_at_period_end: true
+            });
+        }
+
+        // Update Database - keep subscription active but mark for cancellation
+        await prisma.user.update({
+            where: { id: userId },
+            data: { cancelAtPeriodEnd: true }
+        });
+
+        const endDate = user.subscriptionEndDate || new Date();
+        res.json({
+            success: true,
+            message: `Subscription will cancel on ${endDate.toLocaleDateString()}. You'll have access until then.`,
+            cancelAt: endDate
+        });
+    } catch (error: any) {
+        console.error("Cancellation error:", error);
+        res.status(500).json({ error: error.message || 'Failed to cancel subscription' });
+    }
+});
+
+// Check Subscription Status (checks if subscription has expired)
+router.get('/check-subscription-status', authenticateToken, async (req: any, res: any) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const now = new Date();
+        const endDate = user.subscriptionEndDate;
+
+        // Check if subscription has expired (end date has passed)
+        if (user.isSubscribed && endDate && now > endDate) {
+            console.log(`[SUBSCRIPTION] Subscription expired for user ${userId}`);
+            console.log(`[SUBSCRIPTION] End date: ${endDate.toISOString()}, Current: ${now.toISOString()}`);
+
+            await prisma.user.update({
+                where: { id: userId },
+                data: {
+                    isSubscribed: false,
+                    cancelAtPeriodEnd: false
+                }
+            });
+            return res.json({
+                isSubscribed: false,
+                message: 'Subscription has expired',
+                expiredOn: endDate
+            });
+        }
+
+        // Return current subscription status
+        res.json({
+            isSubscribed: user.isSubscribed,
+            cancelAtPeriodEnd: user.cancelAtPeriodEnd,
+            subscriptionEndDate: user.subscriptionEndDate,
+            subscriptionInterval: user.subscriptionInterval,
+            questsPlayed: user.questsPlayed,
+            questsCreated: user.questsCreated
+        });
+    } catch (error: any) {
+        console.error("Status check error:", error);
+        res.status(500).json({ error: error.message || 'Failed to check subscription status' });
+    }
+});
+
+// Reactivate Subscription (undo cancellation before period ends)
+router.post('/reactivate-subscription', authenticateToken, async (req: any, res: any) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const secretKey = process.env.STRIPE_SECRET_KEY || '';
+    const isMockMode = !secretKey.startsWith('sk_') || process.env.STRIPE_MOCK_MODE === 'true';
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (!user.cancelAtPeriodEnd) {
+            return res.json({ success: true, message: 'Subscription is not scheduled for cancellation' });
+        }
+
+        if (isMockMode) {
+            console.log(`[MOCK] Reactivating subscription for user: ${userId}`);
+            await prisma.user.update({
+                where: { id: userId },
+                data: { cancelAtPeriodEnd: false }
+            });
+            return res.json({
+                success: true,
+                message: 'Subscription reactivated successfully (Mock Mode)'
+            });
+        }
+
+        // Real Stripe Logic
+        let customerId = user.stripeCustomerId;
+
+        // If no customerId, try to find by email
+        if (!customerId) {
+            const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+            if (customers.data.length > 0) {
+                customerId = customers.data[0].id;
+            }
+        }
+
+        if (customerId) {
+            // Get active subscriptions
+            const subscriptions = await stripe.subscriptions.list({
+                customer: customerId,
+                status: 'active',
+                limit: 1,
+            });
+
+            if (subscriptions.data.length > 0) {
+                // Update Stripe subscription to NOT cancel at period end
+                await stripe.subscriptions.update(subscriptions.data[0].id, {
+                    cancel_at_period_end: false
+                });
+            }
+        }
+
+        // Update Database
+        await prisma.user.update({
+            where: { id: userId },
+            data: { cancelAtPeriodEnd: false }
+        });
+
+        res.json({
+            success: true,
+            message: 'Subscription reactivated successfully. Your subscription will continue.'
+        });
+    } catch (error: any) {
+        console.error("Reactivation error:", error);
+        res.status(500).json({ error: error.message || 'Failed to reactivate subscription' });
+    }
+});
+
+export default router;
