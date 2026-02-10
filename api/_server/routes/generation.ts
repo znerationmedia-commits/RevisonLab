@@ -129,12 +129,15 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         `;
 
         try {
+            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini...`);
             const responseText = await generateAIContent(prompt, "gemini-2.5-flash");
 
             if (!responseText) {
-                console.error("❌ [GEN] Empty AI response");
+                console.error("❌ [GEN] Empty AI response from Gemini Utility");
                 return res.json(generateMockQuestions(subject, grade, topic, syllabus));
             }
+
+            console.log(`✅ [GEN] Received ${responseText.length} chars from Gemini. Parsing...`);
 
             // Clean up markdown code blocks if present
             let cleanedText = responseText.trim();
@@ -192,9 +195,10 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         }
 
 
-    } catch (error) {
-        console.error("❌ [GEN] Error:", error);
-        res.status(500).json({ error: "Generation Failed" });
+    } catch (error: any) {
+        console.error("❌ [GEN] Outer Error:", error.message);
+        console.error(error.stack);
+        res.status(500).json({ error: "Generation Failed", details: error.message });
     }
 });
 

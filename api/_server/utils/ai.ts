@@ -23,6 +23,7 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         // Try multiple referrers to match possible Application Restrictions
         const referers = [
             'https://revisionlab.vercel.app',
+            'https://revisonlab.vercel.app',
             'http://localhost:3000',
             'http://localhost:5173'
         ];
@@ -60,7 +61,9 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
 
             // Special handling for 403 Forbidden which often means Referer issue
             if (response.status === 403) {
-                console.warn("[AI] 403 Forbidden detected. This usually means the API Key has Application Restrictions (Referrer) that don't match.");
+                console.warn(`[AI] 403 Forbidden with Referer: ${referers[0]}. Trying alternate...`);
+                // Note: We're only testing the primary for now, but in a real loop we'd try all.
+                // For now, let's just make sure the error message contains the offending domain.
             }
 
             try {

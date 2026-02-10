@@ -48,13 +48,12 @@ router.post('/signup', async (req, res) => {
         // Send real email
         const emailSent = await sendOTPEmail(email, verificationCode);
 
-        // ALWAYS log to file for local testing help
-        // REMOVED fs write (Vercel is read-only). Log to console instead.
-        console.log(`[DEV OTP] LAST OTP FOR ${email}: ${verificationCode}`);
-        // require('fs').writeFileSync('otp_test_fallback.txt', `LAST OTP FOR ${email}: ${verificationCode}\n`);
-
         if (!emailSent) {
-            return res.status(500).json({ error: 'Failed to send verification email. BUT I SAVED THE CODE to server/otp_test_fallback.txt for you to use!' });
+            console.error(`[AUTH] Failed to send email to ${email}. Code was: ${verificationCode}`);
+            return res.status(500).json({
+                error: 'Verification email could not be sent. Please contact support or try again later.',
+                debug: process.env.NODE_ENV === 'development' ? `Code: ${verificationCode}` : undefined
+            });
         }
 
         res.json({ message: 'Verification code sent to your email', email });
@@ -187,6 +186,7 @@ router.post('/login', async (req, res) => {
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
+            console.log(`[AUTH] Login failed: Invalid password for ${loginId}`);
             return res.status(400).json({ error: 'Invalid credentials' });
         }
 
@@ -212,7 +212,7 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (error) {
-        console.error(error);
+        console.error("[AUTH] Login error:", error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
