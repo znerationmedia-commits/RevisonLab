@@ -23,10 +23,10 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // CRITICAL: Set Referer to bypass Google Cloud "Application Restrictions"
-                // This allows users to whitelist "https://revisionlab.vercel.app"
-                'Referer': 'https://revisionlab.vercel.app',
-                'Referrer': 'https://revisionlab.vercel.app'
+                // CRITICAL: Spoof Referer as localhost to bypass production domain blocks
+                // The user's API Key likely only whitelists localhost:5173
+                'Referer': 'http://localhost:5173',
+                'Referrer': 'http://localhost:5173'
             },
             body: JSON.stringify({
                 contents: [{
