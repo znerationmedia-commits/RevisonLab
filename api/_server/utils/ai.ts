@@ -6,12 +6,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * the Google Node SDK does not support sending Referer,
  * which causes 403 errors if the API Key has "Application Restrictions".
  */
-export async function generateAIContent(prompt: string, modelName: string = "gemini-2.5-flash"): Promise<string> {
+export async function generateAIContent(prompt: string, modelName: string = "gemini-1.5-flash"): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
         throw new Error("GEMINI_API_KEY is not set");
     }
+
+    const keySnippet = apiKey.substring(apiKey.length - 4);
+    console.log(`[AI] Using API Key ending in: ...${keySnippet}`);
 
     // URL for the Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -23,8 +26,6 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // MANDATORY: Your API key blocks empty referrers. 
-                // You MUST whitelist this domain in Google Cloud Console.
                 'Referer': 'https://revisionlab.vercel.app',
                 'Referrer': 'https://revisionlab.vercel.app'
             },
@@ -37,13 +38,16 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error(`[AI] Gemini API Error Response: ${errorText}`);
 
             // Try to parse detailed JSON error if possible
             try {
                 const errorJson = JSON.parse(errorText);
                 const message = errorJson.error?.message || errorText;
-                throw new Error(`Gemini API Error (${response.status}): ${message}`);
-            } catch (e) {
+                const project = errorJson.error?.details?.[0]?.metadata?.consumer || "unknown";
+                throw new Error(`Gemini API Error (${response.status}): ${message} (Project: ${project})`);
+            } catch (e: any) {
+                if (e.message.includes("Gemini API Error")) throw e;
                 throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
             }
         }
