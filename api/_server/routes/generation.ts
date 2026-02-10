@@ -100,20 +100,8 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
     try {
         // PURE AI GENERATION - Skip database entirely
-        console.log(`🤖 [GEN] Generating questions with AI for: ${subject} / ${grade} / ${topic}`);
-
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        if (!apiKey) {
-            console.warn("⚠️ [GEN] No Gemini API Key, returning mock.");
-            return res.json(generateMockQuestions(subject, grade, topic, syllabus));
-        }
-
         // GEMINI GENERATION - Generate questions with Gemini
         console.log("🤖 [GEN] Generating questions with Gemini...");
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const prompt = `Generate 10 multiple-choice questions for:
         - Subject: ${subject}
@@ -141,9 +129,7 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         }`;
 
         try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const responseText = response.text();
+            const responseText = await generateAIContent(prompt, "gemini-2.5-flash");
 
             if (!responseText) {
                 console.error("❌ [GEN] Empty AI response");
@@ -240,13 +226,6 @@ router.post('/syllabus', async (req, res) => {
 
         // AI SYLLABUS GENERATION with Gemini
         console.log(`🤖 [SYLLABUS] Generating syllabus with Gemini for: ${subject} ${grade}`);
-
-        const apiKey = process.env.GEMINI_API_KEY;
-
-        if (!apiKey) {
-            console.warn("⚠️ [SYLLABUS] No Gemini API Key, returning mock.");
-            return res.json(generateMockSyllabus());
-        }
 
         const prompt = `Generate a comprehensive list of syllabus topics for:
         - Subject: ${subject}

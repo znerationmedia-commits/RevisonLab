@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
 import prisma from '../db.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateAIContent } from '../utils/ai.js';
 
 const router = express.Router();
 
@@ -15,40 +15,14 @@ router.get('/ai-check', async (req, res) => {
             return res.status(500).json({ status: 'error', message: 'GEMINI_API_KEY is not set' });
         }
 
-        // DIRECT FETCH to bypass SDK limitations on Vercel and force Referer header
-        // This solves the "Requests from referer <empty> are blocked" error
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-        console.log('[TEST] Sending request to Gemini REST API...');
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // These headers trick Google into thinking the request comes from the allowed domain
-                'Referer': 'https://revisionlab.vercel.app',
-                'Referrer': 'https://revisionlab.vercel.app'
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: "Reply with only the word 'OK'" }]
-                }]
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
-        }
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response text";
+        // Use central utility for consistency
+        const text = await generateAIContent("Reply with only the word 'OK'", "gemini-2.5-flash");
 
         console.log(`[TEST] Gemini Response: ${text}`);
 
         res.json({
             status: 'ok',
-            message: 'AI generation successful (Direct Fetch)',
+            message: 'AI generation successful (Central Utility)',
             response: text,
             model: "gemini-2.5-flash"
         });
