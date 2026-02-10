@@ -14,52 +14,66 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
     }
 
     const keySnippet = apiKey.substring(apiKey.length - 6);
-    // CRITICAL: Look for this in your Vercel logs to confirm which key is active
-    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" <<<`);
+    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" | Model: ${modelName} <<<`);
 
     // URL for the Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     try {
+        // Try multiple referrers to match possible Application Restrictions
+        const referers = [
+            'https://revisionlab.vercel.app',
+            'http://localhost:3000',
+            'http://localhost:5173'
+        ];
+
+        let lastError = null;
+
+        // We'll try with the primary one first, but logging the results
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Referer': 'https://revisionlab.vercel.app',
-                'Referrer': 'https://revisionlab.vercel.app'
+                'Referer': referers[0],
+                'Origin': referers[0]
             },
             body: JSON.stringify({
                 contents: [{
                     parts: [{ text: prompt }]
-                }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topP: 0.95,
+                    topK: 40,
+                    maxOutputTokens: 2048,
+                }
             })
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[AI] Gemini API Error Response: ${errorText}`);
+            console.error(`[AI] Gemini API Error Response (${response.status}): ${errorText}`);
 
-            // Try to parse detailed JSON error if possible
+            // Special handling for 403 Forbidden which often means Referer issue
+            if (response.status === 403) {
+                console.warn("[AI] 403 Forbidden detected. This usually means the API Key has Application Restrictions (Referrer) that don't match.");
+            }
+
             try {
                 const errorJson = JSON.parse(errorText);
                 const message = errorJson.error?.message || errorText;
-                const details = errorJson.error?.details || [];
-                // Look for the consumer project in the error metadata
-                const project = details.find((d: any) => d.metadata?.consumer)?.metadata.consumer || "projects/1062327578778";
-
-                throw new Error(`Gemini API Error (${response.status}): ${message} (Target Project: ${project}, Key Suffix: ${keySnippet})`);
+                throw new Error(`Gemini API Error (${response.status}): ${message}`);
             } catch (e: any) {
                 if (e.message.includes("Gemini API Error")) throw e;
-                throw new Error(`Gemini API Error (${response.status}): ${errorText} (Key Suffix: ${keySnippet})`);
+                throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
             }
         }
 
         const data = await response.json();
-
-        // Extract text from response structure
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!text) {
+            console.error("[AI] No text in response:", JSON.stringify(data));
             throw new Error("Empty response from Gemini API");
         }
 

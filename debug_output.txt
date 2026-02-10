@@ -1,0 +1,35 @@
+Using API Key: AIzaS...
+SDK: Initialized.
+SDK: Calling ai.models.list()...
+SDK Failed!
+Status: 403
+Message: {"error":{"code":403,"message":"Requests from referer <empty> are blocked.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_HTTP_REFERRER_BLOCKED","domain":"googleapis.com","metadata":{"httpReferrer":"<empty>","service":"generativelanguage.googleapis.com","consumer":"projects/1062327578778"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Requests from referer <empty> are blocked."}]}}
+
+--- Retrying with RAW FETCH and REFERER Header ---
+Raw fetch also failed.
+Status: 403
+Body: {
+  "error": {
+    "code": 403,
+    "message": "Requests from referer https://revisionlab.vercel.app are blocked.",
+    "status": "PERMISSION_DENIED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "API_KEY_HTTP_REFERRER_BLOCKED",
+        "domain": "googleapis.com",
+        "metadata": {
+          "consumer": "projects/1062327578778",
+          "service": "generativelanguage.googleapis.com",
+          "httpReferrer": "https://revisionlab.vercel.app"
+        }
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.LocalizedMessage",
+        "locale": "en-US",
+        "message": "Requests from referer https://revisionlab.vercel.app are blocked."
+      }
+    ]
+  }
+}
+

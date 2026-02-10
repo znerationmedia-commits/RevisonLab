@@ -51,34 +51,38 @@ const main = async () => {
         if (error.status) console.error("Status:", error.status);
         if (error.message) console.error("Message:", error.message);
 
-        console.log("\n--- Retrying with RAW FETCH and REFERER Header ---");
-        // Fallback to fetch with header to simulate browser
-        try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-            const response = await fetch(url, {
-                headers: {
-                    'Referer': 'http://localhost:3000/'
-                }
-            });
+        console.log("\n--- Testing Multiple Referrers ---");
+        const testReferrers = [
+            'http://localhost:3000/',
+            'https://revisionlab-gamified-learning.vercel.app/',
+            'https://questacademy.vercel.app/'
+        ];
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log("SUCCESS with Referer header!");
-                // Just log the model names to check for gemini-1.5-flash-001
-                if (data.models) {
-                    console.log("Writing models to model_list.txt...");
-                    const names = data.models.map(m => m.name).join('\n');
-                    fs.writeFileSync('model_list.txt', names);
-                    console.log("Done writing.");
+        for (const ref of testReferrers) {
+            try {
+                const model = "models/gemini-2.5-flash"; // Use Gemini 2.5 as requested
+                const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Referer': ref
+                    },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: "hi" }] }]
+                    })
+                });
+
+                console.log(`Referer: ${ref} -> Status: ${response.status}`);
+                if (response.ok) {
+                    console.log(`✅ SUCCESS with ${ref}`);
+                } else {
+                    const err = await response.json();
+                    console.log(`❌ FAILED with ${ref}: ${err.error?.message || "Unknown error"}`);
                 }
-            } else {
-                console.error("Raw fetch also failed.");
-                console.error("Status:", response.status);
-                const text = await response.text();
-                console.error("Body:", text);
+            } catch (e) {
+                console.log(`❌ ERROR testing ${ref}: ${e.message}`);
             }
-        } catch (fetchError) {
-            console.error("Raw fetch error:", fetchError);
         }
     }
 }

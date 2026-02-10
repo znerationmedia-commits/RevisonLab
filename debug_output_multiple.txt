@@ -1,0 +1,14 @@
+Using API Key: AIzaS...
+SDK: Initialized.
+SDK: Calling ai.models.list()...
+SDK Failed!
+
+Status: 403
+--- Testing Multiple Referrers ---
+Message: {"error":{"code":403,"message":"Requests from referer <empty> are blocked.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_HTTP_REFERRER_BLOCKED","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com","consumer":"projects/1062327578778","httpReferrer":"<empty>"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Requests from referer <empty> are blocked."}]}}
+Referer: http://localhost:3000/ -> Status: 404
+Γ¥î FAILED with http://localhost:3000/: models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+Referer: https://revisionlab-gamified-learning.vercel.app/ -> Status: 403
+Γ¥î FAILED with https://revisionlab-gamified-learning.vercel.app/: Requests from referer https://revisionlab-gamified-learning.vercel.app/ are blocked.
+Referer: https://questacademy.vercel.app/ -> Status: 403
+Γ¥î FAILED with https://questacademy.vercel.app/: Requests from referer https://questacademy.vercel.app/ are blocked.
