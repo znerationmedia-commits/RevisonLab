@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * the Google Node SDK does not support sending Referer,
  * which causes 403 errors if the API Key has "Application Restrictions".
  */
-export async function generateAIContent(prompt: string, modelName: string = "gemini-1.5-flash"): Promise<string> {
+export async function generateAIContent(prompt: string, modelName: string = "gemini-2.5-flash"): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -14,6 +14,7 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
     }
 
     const keySnippet = apiKey.substring(apiKey.length - 4);
+    // This logs to Vercel console to help you identify the key
     console.log(`[AI] Using API Key ending in: ...${keySnippet}`);
 
     // URL for the Gemini API
@@ -44,8 +45,11 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
             try {
                 const errorJson = JSON.parse(errorText);
                 const message = errorJson.error?.message || errorText;
-                const project = errorJson.error?.details?.[0]?.metadata?.consumer || "unknown";
-                throw new Error(`Gemini API Error (${response.status}): ${message} (Project: ${project})`);
+                const details = errorJson.error?.details || [];
+                // Look for the consumer project in the error metadata
+                const project = details.find((d: any) => d.metadata?.consumer)?.metadata.consumer || "projects/1062327578778";
+
+                throw new Error(`Gemini API Error (${response.status}): ${message} (Target Project: ${project})`);
             } catch (e: any) {
                 if (e.message.includes("Gemini API Error")) throw e;
                 throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
