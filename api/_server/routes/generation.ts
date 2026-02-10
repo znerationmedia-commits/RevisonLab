@@ -129,47 +129,25 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         `;
 
         try {
-            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini...`);
-            const responseText = await generateAIContent(prompt, "gemini-2.5-flash");
+            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini (JSON Mode)...`);
+            const responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
 
             if (!responseText) {
                 console.error("❌ [GEN] Empty AI response from Gemini Utility");
                 return res.json(generateMockQuestions(subject, grade, topic, syllabus));
             }
 
-            console.log(`✅ [GEN] Received ${responseText.length} chars from Gemini. Parsing...`);
-
-            // Clean up markdown code blocks if present
-            let cleanedText = responseText.trim();
-            if (cleanedText.startsWith('```json')) {
-                cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-            } else if (cleanedText.startsWith('```')) {
-                cleanedText = cleanedText.replace(/```\n?/g, '');
-            }
+            console.log(`✅ [GEN] Received JSON response (${responseText.length} chars). Parsing...`);
 
             // Try to parse the JSON
             let aiQuestions;
             try {
-                const parsed = JSON.parse(cleanedText);
+                const parsed = JSON.parse(responseText.trim());
                 aiQuestions = parsed.questions || parsed;
             } catch (parseError: any) {
                 console.error(`❌ [GEN] JSON Parse Error: ${parseError.message}`);
-                console.log(`[GEN] Problematic JSON (first 500 chars): ${cleanedText.substring(0, 500)}`);
-
-                // Try to extract JSON array even if it's malformed
-                const jsonMatch = cleanedText.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    try {
-                        aiQuestions = JSON.parse(jsonMatch[0]);
-                        console.log(`✅ [GEN] Recovered ${aiQuestions.length} questions from malformed JSON`);
-                    } catch {
-                        console.error("❌ [GEN] Could not recover from malformed JSON, using mock");
-                        return res.json(generateMockQuestions(subject, grade, topic, syllabus));
-                    }
-                } else {
-                    console.error("❌ [GEN] No JSON array found, using mock");
-                    return res.json(generateMockQuestions(subject, grade, topic, syllabus));
-                }
+                console.log(`[GEN] Problematic JSON (first 500 chars): ${responseText.substring(0, 500)}`);
+                return res.json(generateMockQuestions(subject, grade, topic, syllabus));
             }
 
             // Validate the questions have the right structure
@@ -215,11 +193,7 @@ router.post('/syllabus', async (req, res) => {
         // 1. Check DB Cache
         const cached = await prisma.courseSyllabus.findUnique({
             where: {
-                subject_grade_syllabus: {
-                    subject,
-                    grade,
-                    syllabus
-                }
+                subject_grade_syllabus: { subject, grade, syllabus }
             }
         });
 
@@ -229,7 +203,7 @@ router.post('/syllabus', async (req, res) => {
         }
 
         // AI SYLLABUS GENERATION with Gemini
-        console.log(`🤖 [SYLLABUS] Generating syllabus with Gemini for: ${subject} ${grade}`);
+        console.log(`🤖 [SYLLABUS] Generating syllabus with Gemini for: ${subject} ${grade} (JSON Mode)`);
 
         const prompt = `Generate a comprehensive list of syllabus topics for:
         - Subject: ${subject}
@@ -250,7 +224,7 @@ router.post('/syllabus', async (req, res) => {
 
         let responseText;
         try {
-            responseText = await generateAIContent(prompt, "gemini-2.5-flash");
+            responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
         } catch (apiError: any) {
             console.error(`❌ [SYLLABUS] Gemini API Error: ${apiError.message}`);
             return res.json(generateMockSyllabus());
@@ -261,35 +235,14 @@ router.post('/syllabus', async (req, res) => {
             return res.json(generateMockSyllabus());
         }
 
-        // Clean up markdown code blocks if present
-        let cleanedText = responseText.trim();
-        if (cleanedText.startsWith('```json')) {
-            cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-        } else if (cleanedText.startsWith('```')) {
-            cleanedText = cleanedText.replace(/```\n?/g, '');
-        }
-
         let topics = [];
         try {
-            const parsed = JSON.parse(cleanedText);
+            const parsed = JSON.parse(responseText.trim());
             topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
         } catch (e: any) {
             console.error(`❌ [SYLLABUS] JSON Parse Error: ${e.message}`);
-            console.log(`[SYLLABUS] Raw response (first 1000 chars): ${cleanedText.substring(0, 1000)}`);
-
-            // Try to extract JSON
-            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/) || cleanedText.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-                try {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
-                    if (topics.length > 0) {
-                        console.log(`✅ [SYLLABUS] Recovered ${topics.length} topics from malformed JSON via regex`);
-                    }
-                } catch (recoveryError) {
-                    console.error("❌ [SYLLABUS] Recovery failed");
-                }
-            }
+            console.log(`[SYLLABUS] Raw response: ${responseText}`);
+            return res.json(generateMockSyllabus());
         }
 
         if (topics.length === 0) {
@@ -309,12 +262,9 @@ router.post('/syllabus', async (req, res) => {
         });
 
         return res.json(topics);
-    } catch (error) {
-        console.error("❌ [SYLLABUS] Error:", error);
-        // Fallback to mock if DB fails for some reason
-        console.warn("⚠️ [SYLLABUS] Falling back to mock data due to error.");
-        const mock = generateMockSyllabus();
-        return res.json(mock);
+    } catch (error: any) {
+        console.error("❌ [SYLLABUS] Error:", error.message);
+        return res.json(generateMockSyllabus());
     }
 });
 

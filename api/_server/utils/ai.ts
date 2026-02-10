@@ -6,7 +6,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * the Google Node SDK does not support sending Referer,
  * which causes 403 errors if the API Key has "Application Restrictions".
  */
-export async function generateAIContent(prompt: string, modelName: string = "gemini-2.5-flash"): Promise<string> {
+export async function generateAIContent(
+    prompt: string,
+    modelName: string = "gemini-2.5-flash",
+    responseMimeType?: string
+): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -14,7 +18,7 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
     }
 
     const keySnippet = apiKey.substring(apiKey.length - 6);
-    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" | Model: ${modelName} <<<`);
+    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" | Model: ${modelName} | JSON Mode: ${!!responseMimeType} <<<`);
 
     // URL for the Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -27,8 +31,6 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
             'http://localhost:3000',
             'http://localhost:5173'
         ];
-
-        let lastError = null;
 
         // We'll try with the primary one first, but logging the results
         const startTime = Date.now();
@@ -47,7 +49,8 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
                     temperature: 0.7,
                     topP: 0.95,
                     topK: 40,
-                    maxOutputTokens: 2048,
+                    maxOutputTokens: 4096,
+                    responseMimeType: responseMimeType
                 }
             })
         });
