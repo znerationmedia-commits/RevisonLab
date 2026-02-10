@@ -23,9 +23,10 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // Explicitly clear these to prevent Vercel from leaking browser referrers
-                'Referer': '',
-                'Referrer': ''
+                // MANDATORY: Your API key blocks empty referrers. 
+                // You MUST whitelist this domain in Google Cloud Console.
+                'Referer': 'https://revisionlab.vercel.app',
+                'Referrer': 'https://revisionlab.vercel.app'
             },
             body: JSON.stringify({
                 contents: [{
