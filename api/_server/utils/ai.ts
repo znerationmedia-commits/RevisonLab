@@ -22,11 +22,7 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                // CRITICAL: Spoof Referer as localhost to bypass production domain blocks
-                // The user's API Key likely only whitelists localhost:5173
-                'Referer': 'http://localhost:5173',
-                'Referrer': 'http://localhost:5173'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 contents: [{
