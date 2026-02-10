@@ -45,10 +45,10 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
                 // Look for the consumer project in the error metadata
                 const project = details.find((d: any) => d.metadata?.consumer)?.metadata.consumer || "projects/1062327578778";
 
-                throw new Error(`Gemini API Error (${response.status}): ${message} (Target Project: ${project})`);
+                throw new Error(`Gemini API Error (${response.status}): ${message} (Target Project: ${project}, Key Suffix: ${keySnippet})`);
             } catch (e: any) {
                 if (e.message.includes("Gemini API Error")) throw e;
-                throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
+                throw new Error(`Gemini API Error (${response.status}): ${errorText} (Key Suffix: ${keySnippet})`);
             }
         }
 
