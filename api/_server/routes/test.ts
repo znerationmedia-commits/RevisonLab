@@ -16,7 +16,7 @@ router.get('/ai-check', async (req, res) => {
         }
 
         // Use central utility for consistency
-        const text = await generateAIContent("Reply with only the word 'OK'", "gemini-2.0-flash");
+        const text = await generateAIContent("Reply with only the word 'OK'", "gemini-2.5-flash");
 
         console.log(`[TEST] Gemini Response: ${text}`);
 
@@ -24,7 +24,7 @@ router.get('/ai-check', async (req, res) => {
             status: 'ok',
             message: 'AI generation successful (Central Utility)',
             response: text,
-            model: "gemini-2.0-flash"
+            model: "gemini-2.5-flash"
         });
 
     } catch (error: any) {
