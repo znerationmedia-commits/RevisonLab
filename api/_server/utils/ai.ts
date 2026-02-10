@@ -30,6 +30,7 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         let lastError = null;
 
         // We'll try with the primary one first, but logging the results
+        const startTime = Date.now();
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -49,6 +50,9 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
                 }
             })
         });
+
+        const duration = (Date.now() - startTime) / 1000;
+        console.log(`[AI] Gemini API Response received in ${duration}s (Status: ${response.status})`);
 
         if (!response.ok) {
             const errorText = await response.text();
