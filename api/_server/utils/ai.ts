@@ -22,7 +22,10 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                // Explicitly clear these to prevent Vercel from leaking browser referrers
+                'Referer': '',
+                'Referrer': ''
             },
             body: JSON.stringify({
                 contents: [{
