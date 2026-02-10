@@ -11,7 +11,6 @@ const router = express.Router();
 
 // Helper function to check mock mode dynamically
 const isMockMode = () => process.env.AI_MOCK_MODE === 'true';
-console.log(`[AI CONFIG] Mock Mode: ${isMockMode()} (AI_MOCK_MODE="${process.env.AI_MOCK_MODE}")`);
 
 // Types (replicated from client for server usage)
 enum Subject {
@@ -33,7 +32,7 @@ enum Subject {
     RBT = 'Reka Bentuk & Teknologi (RBT)'
 }
 
-// ... Helper functions ...
+// Helper functions 
 const getSubjectCategory = (subject: string) => {
     const stem = [Subject.MATH, Subject.SCIENCE, Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY, Subject.ADD_MATH, Subject.COMPUTER_SCIENCE];
     const langs = [Subject.BAHASA_MELAYU, Subject.ENGLISH];
@@ -44,7 +43,7 @@ const getSubjectCategory = (subject: string) => {
     return 'VALUES';
 };
 
-// ... Mock Generation Logic (Server Side) ...
+// Mock Generation Logic (Server Side) 
 const generateMockQuestions = (subject: string, grade: string, topic: string, syllabus: string) => {
     return Array.from({ length: 15 }).map((_, i) => ({
         id: `mock-${Date.now()}-${i}`,
@@ -59,7 +58,76 @@ const generateMockSyllabus = () => {
     return ["Mock Topic 1", "Mock Topic 2", "Mock Topic 3", "Mock Topic 4", "Mock Topic 5"];
 }
 
-// Limit Check & Increment
+/**
+ * SUPER-ROBUST JSON REPAIR
+ * Handles truncated or slightly malformed JSON by:
+ * 1. Extracting the core JSON part via regex
+ * 2. Closing open braces/brackets if truncated
+ */
+const superRepairJSON = (text: string): any => {
+    // Stage 1: Basic Extraction
+    let cleaned = text.trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/) || cleaned.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+        // If no full match, try to find the start and fix the end
+        const startIdx = cleaned.indexOf('{');
+        if (startIdx !== -1) {
+            cleaned = cleaned.substring(startIdx);
+        } else {
+            const arrStartIdx = cleaned.indexOf('[');
+            if (arrStartIdx !== -1) cleaned = cleaned.substring(arrStartIdx);
+            else throw new Error("No JSON start found");
+        }
+    } else {
+        cleaned = jsonMatch[0];
+    }
+
+    // Stage 2: Balanced Brackets (Repair Truncation)
+    const stack: string[] = [];
+    let insideString = false;
+    let escape = false;
+    let lastValidIdx = cleaned.length;
+
+    for (let i = 0; i < cleaned.length; i++) {
+        const char = cleaned[i];
+        if (escape) {
+            escape = false;
+            continue;
+        }
+        if (char === '\\') {
+            escape = true;
+            continue;
+        }
+        if (char === '"') {
+            insideString = !insideString;
+            continue;
+        }
+        if (!insideString) {
+            if (char === '{' || char === '[') {
+                stack.push(char);
+            } else if (char === '}' || char === ']') {
+                const last = stack.pop();
+                if ((char === '}' && last !== '{') || (char === ']' && last !== '[')) {
+                    // Mismatch - might be malformed in the middle
+                }
+            }
+        }
+    }
+
+    // If we are inside an unterminated string, close it
+    if (insideString) cleaned += '"';
+
+    // Close remaining brackets in reverse order
+    while (stack.length > 0) {
+        const last = stack.pop();
+        if (last === '{') cleaned += '}';
+        if (last === '[') cleaned += ']';
+    }
+
+    return JSON.parse(cleaned);
+};
+
+// ... Limit Check & Increment ...
 router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: AuthRequest, res) => {
     const { subject, grade, topic, syllabus } = req.body;
     const userId = req.user?.id;
@@ -87,7 +155,6 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
             }
         } catch (error) {
             console.error("[GEN] Error checking/updating user limit:", error);
-            // Continue to generation if DB fails? No, fail safe.
             return res.status(500).json({ error: "Internal Server Error" });
         }
     }
@@ -109,59 +176,37 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         - Topic: ${topic}
         - Syllabus: ${syllabus}
 
-        INSTRUCTIONS:
-        1. Questions must be appropriate for ${grade} level
-        2. Follow ${syllabus} curriculum standards
-        3. Each question must have 4 options (A, B, C, D)
-        4. Include the correct answer (0-3 index) and a brief helpful explanation
-        5. Make questions challenging but fair
+        CRITICAL INSTRUCTIONS:
+        1. Format: ${grade} level, ${syllabus} standards
+        2. Content: 4 options (A-D), correct index (0-3)
+        3. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
+        4. Conciseness: Explanations MUST be 1-2 short sentences maximum. This is vital to prevent truncation.
 
         JSON SPECIFICATION:
-        Return ONLY a JSON object with a "questions" key containing an array of objects.
-        Each question object MUST have:
-        - "question": string
-        - "options": string array (length 4)
-        - "correctAnswerIndex": integer (0, 1, 2, or 3)
-        - "explanation": string
-
-        Example:
+        Return ONLY a JSON object:
         {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correctAnswerIndex": 0, "explanation": "..."}]}
         `;
 
         try {
-            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini (JSON Mode: 2.5-flash)...`);
+            console.log(`🤖 [GEN] Requesting Gemini (JSON Mode: Super-Robust)...`);
             const responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
 
             if (!responseText) {
-                console.error("❌ [GEN] Empty AI response from Gemini Utility");
+                console.error("❌ [GEN] Empty AI response");
                 return res.json(generateMockQuestions(subject, grade, topic, syllabus));
             }
 
-            console.log(`✅ [GEN] Received JSON response (${responseText.length} chars). Parsing...`);
+            console.log(`✅ [GEN] Received response (${responseText.length} chars). Parsing...`);
 
-            // Try to parse the JSON
+            // Try to parse the JSON with Super Repair
             let aiQuestions;
             try {
-                const parsed = JSON.parse(responseText.trim());
-                aiQuestions = parsed.questions || parsed;
+                const parsed = superRepairJSON(responseText);
+                aiQuestions = parsed.questions || (Array.isArray(parsed) ? parsed : null);
             } catch (parseError: any) {
-                console.error(`❌ [GEN] JSON Parse Error: ${parseError.message}`);
-                console.log(`[GEN] Problematic JSON (Full Response): ${responseText}`);
-
-                // Advanced Recovery Logic
-                const jsonMatch = responseText.match(/\{[\s\S]*\}/) || responseText.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    try {
-                        const repaired = JSON.parse(jsonMatch[0]);
-                        aiQuestions = repaired.questions || repaired;
-                        console.log(`✅ [GEN] Recovered ${Array.isArray(aiQuestions) ? aiQuestions.length : 'data'} via regex repair`);
-                    } catch (repairError) {
-                        console.error("❌ [GEN] Regex repair failed");
-                        return res.json(generateMockQuestions(subject, grade, topic, syllabus));
-                    }
-                } else {
-                    return res.json(generateMockQuestions(subject, grade, topic, syllabus));
-                }
+                console.error(`❌ [GEN] JSON Critical Failure: ${parseError.message}`);
+                console.log(`[GEN] Full Response for Debug: ${responseText}`);
+                return res.json(generateMockQuestions(subject, grade, topic, syllabus));
             }
 
             // Validate the questions have the right structure
@@ -249,28 +294,16 @@ router.post('/syllabus', async (req, res) => {
             return res.json(generateMockSyllabus());
         }
 
+        console.log(`✅ [SYLLABUS] Received response (${responseText.length} chars). Parsing...`);
+
         let topics = [];
         try {
-            const parsed = JSON.parse(responseText.trim());
+            const parsed = superRepairJSON(responseText);
             topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
         } catch (e: any) {
-            console.error(`❌ [SYLLABUS] JSON Parse Error: ${e.message}`);
-            console.log(`[SYLLABUS] Problematic JSON (Full Response): ${responseText}`);
-
-            // Advanced Recovery Logic
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/) || responseText.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-                try {
-                    const repaired = JSON.parse(jsonMatch[0]);
-                    topics = repaired.topics || (Array.isArray(repaired) ? repaired : []);
-                    console.log(`✅ [SYLLABUS] Recovered ${topics.length} topics via regex repair`);
-                } catch (repairError) {
-                    console.error("❌ [SYLLABUS] Regex repair failed");
-                    return res.json(generateMockSyllabus());
-                }
-            } else {
-                return res.json(generateMockSyllabus());
-            }
+            console.error(`❌ [SYLLABUS] JSON Critical Failure: ${e.message}`);
+            console.log(`[SYLLABUS] Full Response for Debug: ${responseText}`);
+            return res.json(generateMockSyllabus());
         }
 
         if (topics.length === 0) {

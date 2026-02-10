@@ -50,7 +50,7 @@ export async function generateAIContent(
                     parts: [{ text: prompt }]
                 }],
                 generationConfig: {
-                    temperature: 0.7,
+                    temperature: 0.4,
                     topP: 0.95,
                     topK: 40,
                     max_output_tokens: 4096,
