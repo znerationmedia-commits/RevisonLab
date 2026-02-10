@@ -24,7 +24,9 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Referer': 'https://revisionlab.vercel.app',
+                'Referrer': 'https://revisionlab.vercel.app'
             },
             body: JSON.stringify({
                 contents: [{
