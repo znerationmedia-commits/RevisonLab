@@ -13,22 +13,18 @@ export async function generateAIContent(prompt: string, modelName: string = "gem
         throw new Error("GEMINI_API_KEY is not set");
     }
 
-    const keySnippet = apiKey.substring(apiKey.length - 4);
-    // This logs to Vercel console to help you identify the key
-    console.log(`[AI] Using API Key ending in: ...${keySnippet}`);
+    const keySnippet = apiKey.substring(apiKey.length - 6);
+    // CRITICAL: Look for this in your Vercel logs to confirm which key is active
+    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" <<<`);
 
     // URL for the Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-    console.log(`[AI] Sending Direct Fetch request to ${modelName}...`);
 
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Referer': 'https://revisionlab.vercel.app',
-                'Referrer': 'https://revisionlab.vercel.app'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 contents: [{
