@@ -240,11 +240,13 @@ router.post('/syllabus', async (req, res) => {
         1. Base this on the OFFICIAL current curriculum
         2. For KSSR/KSSM (Malaysian), align with latest DSKP standards
         3. For IGCSE, align with Cambridge curriculum
-        4. Return a flat JSON array of topic strings
-        5. Include 12-20 key topics
+        4. Include 12-20 key topics
 
-        OUTPUT FORMAT:
-        {"topics": ["Chapter 1: Topic Name", "Chapter 2: Topic Name", ...]}`;
+        JSON SPECIFICATION:
+        Return ONLY a JSON object with a "topics" key containing a flat array of strings.
+        Example:
+        {"topics": ["Chapter 1: Topic Name", "Chapter 2: Topic Name"]}
+        `;
 
         let responseText;
         try {
@@ -270,16 +272,23 @@ router.post('/syllabus', async (req, res) => {
         let topics = [];
         try {
             const parsed = JSON.parse(cleanedText);
-            topics = parsed.topics || [];
+            topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
         } catch (e: any) {
-            console.error(`❌ [SYLLABUS] JSON Parse Error`, e);
+            console.error(`❌ [SYLLABUS] JSON Parse Error: ${e.message}`);
+            console.log(`[SYLLABUS] Raw response (first 1000 chars): ${cleanedText.substring(0, 1000)}`);
+
             // Try to extract JSON
-            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/) || cleanedText.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
                 try {
                     const parsed = JSON.parse(jsonMatch[0]);
-                    topics = parsed.topics || [];
-                } catch { } // fail silent
+                    topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
+                    if (topics.length > 0) {
+                        console.log(`✅ [SYLLABUS] Recovered ${topics.length} topics from malformed JSON via regex`);
+                    }
+                } catch (recoveryError) {
+                    console.error("❌ [SYLLABUS] Recovery failed");
+                }
             }
         }
 
