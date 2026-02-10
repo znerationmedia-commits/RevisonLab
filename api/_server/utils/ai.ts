@@ -17,11 +17,15 @@ export async function generateAIContent(
         throw new Error("GEMINI_API_KEY is not set");
     }
 
+    // Safety check for model name
+    const cleanModelName = modelName.includes('/') ? modelName.split('/').pop() : modelName;
+    const modelPath = `models/${cleanModelName}`;
+
     const keySnippet = apiKey.substring(apiKey.length - 6);
-    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" | Model: ${modelName} | JSON Mode: ${!!responseMimeType} <<<`);
+    console.log(`[AI] >>> KEY VERIFICATION: Using API Key ending in "...${keySnippet}" | Model: ${modelPath} | JSON Mode: ${!!responseMimeType} <<<`);
 
     // URL for the Gemini API
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${apiKey}`;
 
     try {
         // Try multiple referrers to match possible Application Restrictions
@@ -49,8 +53,8 @@ export async function generateAIContent(
                     temperature: 0.7,
                     topP: 0.95,
                     topK: 40,
-                    maxOutputTokens: 4096,
-                    responseMimeType: responseMimeType
+                    max_output_tokens: 4096,
+                    response_mime_type: responseMimeType
                 }
             })
         });
@@ -62,19 +66,18 @@ export async function generateAIContent(
             const errorText = await response.text();
             console.error(`[AI] Gemini API Error Response (${response.status}): ${errorText}`);
 
-            // Special handling for 403 Forbidden which often means Referer issue
-            if (response.status === 403) {
-                console.warn(`[AI] 403 Forbidden with Referer: ${referers[0]}. Trying alternate...`);
-                // Note: We're only testing the primary for now, but in a real loop we'd try all.
-                // For now, let's just make sure the error message contains the offending domain.
-            }
-
             try {
                 const errorJson = JSON.parse(errorText);
                 const message = errorJson.error?.message || errorText;
+
+                // Enhanced error context
+                if (response.status === 404) {
+                    throw new Error(`Model not found or invalid: ${modelPath}. Check if Gemini 2.5 is available for this API key.`);
+                }
+
                 throw new Error(`Gemini API Error (${response.status}): ${message}`);
             } catch (e: any) {
-                if (e.message.includes("Gemini API Error")) throw e;
+                if (e.message.includes("Gemini API Error") || e.message.includes("Model not found")) throw e;
                 throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
             }
         }
