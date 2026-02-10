@@ -129,8 +129,8 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         `;
 
         try {
-            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini (JSON Mode)...`);
-            const responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
+            console.log(`🤖 [GEN] Prompt length: ${prompt.length} chars. Requesting Gemini (JSON Mode: 2.0-flash)...`);
+            const responseText = await generateAIContent(prompt, "gemini-2.0-flash", "application/json");
 
             if (!responseText) {
                 console.error("❌ [GEN] Empty AI response from Gemini Utility");
@@ -146,8 +146,22 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
                 aiQuestions = parsed.questions || parsed;
             } catch (parseError: any) {
                 console.error(`❌ [GEN] JSON Parse Error: ${parseError.message}`);
-                console.log(`[GEN] Problematic JSON (first 500 chars): ${responseText.substring(0, 500)}`);
-                return res.json(generateMockQuestions(subject, grade, topic, syllabus));
+                console.log(`[GEN] Problematic JSON (Full Response): ${responseText}`);
+
+                // Advanced Recovery Logic
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/) || responseText.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    try {
+                        const repaired = JSON.parse(jsonMatch[0]);
+                        aiQuestions = repaired.questions || repaired;
+                        console.log(`✅ [GEN] Recovered ${Array.isArray(aiQuestions) ? aiQuestions.length : 'data'} via regex repair`);
+                    } catch (repairError) {
+                        console.error("❌ [GEN] Regex repair failed");
+                        return res.json(generateMockQuestions(subject, grade, topic, syllabus));
+                    }
+                } else {
+                    return res.json(generateMockQuestions(subject, grade, topic, syllabus));
+                }
             }
 
             // Validate the questions have the right structure
@@ -224,7 +238,7 @@ router.post('/syllabus', async (req, res) => {
 
         let responseText;
         try {
-            responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
+            responseText = await generateAIContent(prompt, "gemini-2.0-flash", "application/json");
         } catch (apiError: any) {
             console.error(`❌ [SYLLABUS] Gemini API Error: ${apiError.message}`);
             return res.json(generateMockSyllabus());
@@ -241,8 +255,22 @@ router.post('/syllabus', async (req, res) => {
             topics = parsed.topics || (Array.isArray(parsed) ? parsed : []);
         } catch (e: any) {
             console.error(`❌ [SYLLABUS] JSON Parse Error: ${e.message}`);
-            console.log(`[SYLLABUS] Raw response: ${responseText}`);
-            return res.json(generateMockSyllabus());
+            console.log(`[SYLLABUS] Problematic JSON (Full Response): ${responseText}`);
+
+            // Advanced Recovery Logic
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/) || responseText.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                try {
+                    const repaired = JSON.parse(jsonMatch[0]);
+                    topics = repaired.topics || (Array.isArray(repaired) ? repaired : []);
+                    console.log(`✅ [SYLLABUS] Recovered ${topics.length} topics via regex repair`);
+                } catch (repairError) {
+                    console.error("❌ [SYLLABUS] Regex repair failed");
+                    return res.json(generateMockSyllabus());
+                }
+            } else {
+                return res.json(generateMockSyllabus());
+            }
         }
 
         if (topics.length === 0) {
