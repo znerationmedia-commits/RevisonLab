@@ -8,7 +8,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  */
 export async function generateAIContent(
     prompt: string,
-    modelName: string = "gemini-2.5-flash",
+    modelName: string = "gemini-1.5-flash",
     responseMimeType?: string
 ): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;

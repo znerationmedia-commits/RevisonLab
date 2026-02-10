@@ -188,8 +188,8 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         `;
 
         try {
-            console.log(`🤖 [GEN] Requesting Gemini (JSON Mode: Super-Robust)...`);
-            const responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
+            console.log(`🤖 [GEN] Requesting Gemini (JSON Mode: Super-Robust 1.5)...`);
+            const responseText = await generateAIContent(prompt, "gemini-1.5-flash", "application/json");
 
             if (!responseText) {
                 console.error("❌ [GEN] Empty AI response");
@@ -283,7 +283,7 @@ router.post('/syllabus', async (req, res) => {
 
         let responseText;
         try {
-            responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
+            responseText = await generateAIContent(prompt, "gemini-1.5-flash", "application/json");
         } catch (apiError: any) {
             console.error(`❌ [SYLLABUS] Gemini API Error: ${apiError.message}`);
             return res.json(generateMockSyllabus());
