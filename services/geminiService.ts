@@ -77,7 +77,15 @@ const generateContent = async (subject: Subject, grade: GradeLevel, topic: strin
     }
 
     const data = await response.json();
-    return data;
+    console.log("🎁 [AI SERVICE] Quest Data Received:", typeof data, Array.isArray(data) ? `Array(${data.length})` : 'Object');
+
+    // Safety: Ensure we return an array
+    const questionsArray = Array.isArray(data) ? data : (data.questions || []);
+
+    if (questionsArray.length > 0) {
+      console.log("📝 [AI SERVICE] Sample Question:", questionsArray[0].text ? 'Has text' : 'Missing text', questionsArray[0].options ? `Options: ${questionsArray[0].options.length}` : 'No options');
+    }
+    return questionsArray;
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "USER_LIMIT_REACHED") throw error;
     console.error("Failed to fetch from server generation endpoint:", error);

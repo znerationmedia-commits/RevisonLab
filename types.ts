@@ -74,6 +74,8 @@ export interface User {
   email: string;
   role: 'student' | 'teacher';
   isSubscribed: boolean;
+  subscriptionEndDate?: string | Date;
+  subscriptionInterval?: 'month' | 'year';
   completedQuizzes?: number;
   questsPlayed?: number;
   avatar?: string;

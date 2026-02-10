@@ -103,7 +103,7 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         // GEMINI GENERATION - Generate questions with Gemini
         console.log("🤖 [GEN] Generating questions with Gemini...");
 
-        const prompt = `Generate 10 multiple-choice questions for:
+        const prompt = `Generate a set of high-quality multiple-choice questions for:
         - Subject: ${subject}
         - Grade: ${grade}
         - Topic: ${topic}
@@ -113,20 +113,20 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         1. Questions must be appropriate for ${grade} level
         2. Follow ${syllabus} curriculum standards
         3. Each question must have 4 options (A, B, C, D)
-        4. Include the correct answer and a brief explanation
+        4. Include the correct answer (0-3 index) and a brief helpful explanation
         5. Make questions challenging but fair
 
-        OUTPUT FORMAT (JSON array):
-        {
-          "questions": [
-            {
-              "question": "Question text here?",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "correctAnswerIndex": 1,
-              "explanation": "Brief explanation of the answer"
-            }
-          ]
-        }`;
+        JSON SPECIFICATION:
+        Return ONLY a JSON object with a "questions" key containing an array of objects.
+        Each question object MUST have:
+        - "question": string
+        - "options": string array (length 4)
+        - "correctAnswerIndex": integer (0, 1, 2, or 3)
+        - "explanation": string
+
+        Example:
+        {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correctAnswerIndex": 0, "explanation": "..."}]}
+        `;
 
         try {
             const responseText = await generateAIContent(prompt, "gemini-2.5-flash");

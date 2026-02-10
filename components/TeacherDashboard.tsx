@@ -367,11 +367,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                         <div className="flex items-center gap-2 mt-1">
                             {user?.isSubscribed ? (
                                 <span className="bg-brand-green/10 text-brand-green text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-green/20 flex items-center gap-1">
-                                    <Sparkles size={8} /> UNLIMITED
+                                    <Sparkles size={8} /> PRO ACCOUNT
                                 </span>
                             ) : (
                                 <span className="bg-brand-dark/5 text-brand-dark/40 text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-dark/10">
                                     FREE ACCOUNT
+                                </span>
+                            )}
+                            {user?.isSubscribed && user?.subscriptionEndDate && (
+                                <span className="text-[10px] font-bold text-brand-dark/40 uppercase">
+                                    Ends: {new Date(user.subscriptionEndDate).toLocaleDateString()}
                                 </span>
                             )}
                         </div>

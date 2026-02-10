@@ -470,6 +470,15 @@ export default function App() {
     setView('DASHBOARD');
   };
 
+  const getDaysRemaining = (date?: string | Date) => {
+    if (!date) return null;
+    const end = new Date(date);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    if (diffTime < 0) return 0;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const handleCancelSubscription = async () => {
     if (window.confirm("Are you sure you want to cancel your Pro subscription? You will lose access to unlimited quizzes.")) {
       const success = await cancelSubscription();
@@ -819,8 +828,15 @@ export default function App() {
           ) : (
             <>
               {user.isSubscribed && (
-                <div className="hidden sm:flex items-center gap-1 text-xs font-bold text-brand-green bg-white/50 px-2 py-1 rounded-lg">
-                  <CheckCircle2 size={12} /> PRO
+                <div className="hidden sm:flex flex-col items-center bg-white/50 px-2 py-1 rounded-lg">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-brand-green">
+                    <CheckCircle2 size={10} /> PRO
+                  </div>
+                  {user.subscriptionEndDate && (
+                    <div className="text-[8px] font-bold text-brand-dark/40">
+                      {getDaysRemaining(user.subscriptionEndDate)}d left
+                    </div>
+                  )}
                 </div>
               )}
               {/* Show Coins in Navbar */}
@@ -854,6 +870,20 @@ export default function App() {
                     >
                       <UserIcon size={16} /> Dashboard
                     </button>
+                    {user.isSubscribed && (
+                      <div className="px-4 py-2 bg-brand-orange/5 border-b border-brand-dark/5">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-brand-dark/40 uppercase">Status</span>
+                          <span className="text-brand-orange uppercase">Pro Active</span>
+                        </div>
+                        {user.subscriptionEndDate && (
+                          <div className="flex justify-between items-center text-[10px] font-bold mt-1">
+                            <span className="text-brand-dark/40 uppercase">Expires in</span>
+                            <span className="text-brand-dark">{getDaysRemaining(user.subscriptionEndDate)} days</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {user.isSubscribed && (
                       <button
                         onClick={() => { handleCancelSubscription(); setShowProfileMenu(false); }}
