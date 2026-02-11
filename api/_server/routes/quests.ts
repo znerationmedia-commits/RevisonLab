@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 // Create a quest (TEACHER only)
 // Apply expiration check (runs AFTER authentication)
 router.post('/', authenticateToken, checkExpiredSubscriptions, async (req: AuthRequest, res) => {
-    const { title, subject, grade, questions } = req.body;
+    const { title, subject, grade, syllabus, questions } = req.body;
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -64,11 +64,22 @@ router.post('/', authenticateToken, checkExpiredSubscriptions, async (req: AuthR
             }
         }
 
+        // Enforce syllabus selection for Single Syllabus users
+        const subLevel = (user as any).subscriptionLevel;
+        const subSyllabus = (user as any).subscribedSyllabus;
+        if (user.isSubscribed && subLevel === 'single' && syllabus !== subSyllabus) {
+            return res.status(403).json({
+                error: `Your plan only allows creating quests for the ${subSyllabus} syllabus.`,
+                requiredSyllabus: subSyllabus
+            });
+        }
+
         const newQuest = await prisma.quest.create({
             data: {
                 title,
                 subject,
                 grade,
+                syllabus,
                 questions: JSON.stringify(questions),
                 creatorId: userId!
             }

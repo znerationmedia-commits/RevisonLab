@@ -112,6 +112,9 @@ export interface CustomQuest {
   id: string;
   title: string;
   createdAt: number;
+  subject: Subject;
+  grade: GradeLevel;
+  syllabus: Syllabus;
   questions: Question[];
 }
 

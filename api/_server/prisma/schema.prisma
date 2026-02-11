@@ -13,6 +13,7 @@ model Quest {
   title     String
   subject   String
   grade     String
+  syllabus  String
   creatorId String
   questions String   @db.Text
   createdAt DateTime @default(now())

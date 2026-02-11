@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Question, CustomQuest, Subject, GradeLevel } from '../types';
+import { Question, CustomQuest, Subject, GradeLevel, Syllabus } from '../types';
 import { Button } from './Button';
 import { Card } from './Card';
 import { Plus, Trash2, Save, ArrowLeft, BookOpen, CheckCircle, HelpCircle, Loader2, Sparkles } from 'lucide-react';
@@ -34,6 +34,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
     const [questTitle, setQuestTitle] = useState('');
     const [questSubject, setQuestSubject] = useState<Subject | ''>('');
     const [questGrade, setQuestGrade] = useState<GradeLevel | ''>('');
+    const [questSyllabus, setQuestSyllabus] = useState<Syllabus | ''>(() => {
+        const subLevel = (user as any)?.subscriptionLevel;
+        const subSyllabus = (user as any)?.subscribedSyllabus;
+        return (user?.isSubscribed && subLevel === 'single' && subSyllabus) ? subSyllabus as Syllabus : '';
+    });
     const [questions, setQuestions] = useState<Question[]>([]);
 
     // Current Question Form State
@@ -106,8 +111,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
     };
 
     const handleSaveQuest = async () => {
-        if (!questTitle || !questSubject || !questGrade) {
-            alert("Please enter title, subject, and grade.");
+        if (!questTitle || !questSubject || !questGrade || !questSyllabus) {
+            alert("Please enter title, subject, grade, and syllabus.");
+            return;
+        }
+
+        const subLevel = (user as any)?.subscriptionLevel;
+        const subSyllabus = (user as any)?.subscribedSyllabus;
+
+        if (user?.isSubscribed && subLevel === 'single' && questSyllabus !== subSyllabus) {
+            alert(`Your current plan only allows creating quests for the ${subSyllabus} syllabus. Please upgrade to "All Syllabus" for full access.`);
             return;
         }
         if (questions.length === 0) {
@@ -129,6 +142,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                     title: questTitle,
                     subject: questSubject,
                     grade: questGrade,
+                    syllabus: questSyllabus,
                     questions: questions
                 })
             });
@@ -139,6 +153,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                 setQuestTitle('');
                 setQuestSubject('');
                 setQuestGrade('');
+                setQuestSyllabus((user as any)?.subscriptionLevel === 'single' ? (user as any)?.subscribedSyllabus : '');
                 setQuestions([]);
                 fetchQuests(); // Refresh the list
             } else {
@@ -220,6 +235,21 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                                 <option value="">Select Grade</option>
                                 {Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Syllabus</label>
+                            <select
+                                value={questSyllabus}
+                                onChange={(e) => setQuestSyllabus(e.target.value as Syllabus)}
+                                disabled={(user as any)?.subscriptionLevel === 'single'}
+                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${(user as any)?.subscriptionLevel === 'single' ? 'bg-gray-100 opacity-60' : ''}`}
+                            >
+                                <option value="">Select Syllabus</option>
+                                {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            {(user as any)?.subscriptionLevel === 'single' && (
+                                <p className="text-[10px] text-brand-orange font-bold mt-1 uppercase">Locked to Subscribed Syllabus</p>
+                            )}
                         </div>
                     </div>
                 </Card>
