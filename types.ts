@@ -75,7 +75,7 @@ export interface User {
   role: 'student' | 'teacher';
   isSubscribed: boolean;
   subscriptionEndDate?: string | Date;
-  subscriptionInterval?: 'month' | 'year';
+  subscriptionInterval?: 'month';
   subscriptionLevel?: 'single' | 'all';
   subscribedSyllabus?: string;
   completedQuizzes?: number;

@@ -17,7 +17,7 @@ export const PromotionBanner: React.FC<PromotionBannerProps> = ({ onClose, onAct
                             <Sparkles size={18} className="text-brand-orange" />
                         </div>
                         <p className="font-bold text-sm sm:text-base text-brand-dark">
-                            Limited Time: <span className="text-brand-orange">Save 10%</span> on all Yearly Plans!
+                            New: <span className="text-brand-orange">Pro Plan</span> is here! Unlock full access today.
                         </p>
                     </div>
 

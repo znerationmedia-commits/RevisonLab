@@ -198,11 +198,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         const startDate = new Date();
         const endDate = new Date();
 
-        if (interval === 'year') {
-            endDate.setFullYear(endDate.getFullYear() + 1);
-        } else {
-            endDate.setMonth(endDate.getMonth() + 1);
-        }
+        // All subscriptions are monthly (fixed 30 days)
+        endDate.setDate(endDate.getDate() + 30);
 
         await prisma.user.update({
             where: { id: userId },

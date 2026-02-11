@@ -331,14 +331,12 @@ export default function App() {
       const token = localStorage.getItem('quest_token');
 
       const baseAmount = planLevel === 'all' ? currencyConfig.amountAll : currencyConfig.amount;
-      const amount = interval === 'year'
-        ? baseAmount * 10 * 100 // Example: 10 months for price of 12
-        : baseAmount * 100;
+      const amount = baseAmount * 100;
 
       const body = {
         amount: Math.round(amount),
         currency: currencyConfig.code.toLowerCase(),
-        interval,
+        interval: 'month',
         planLevel,
         syllabus
       };
@@ -656,7 +654,6 @@ export default function App() {
   );
 
   const renderPricing = () => {
-    const yearlyPrice = currencyConfig.amount * 10; // Exactly 10x monthly (Best Value)
 
     return (
       <div className="max-w-6xl mx-auto px-4 pb-20 animate-float-slow">
