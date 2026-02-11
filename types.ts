@@ -76,6 +76,8 @@ export interface User {
   isSubscribed: boolean;
   subscriptionEndDate?: string | Date;
   subscriptionInterval?: 'month' | 'year';
+  subscriptionLevel?: 'single' | 'all';
+  subscribedSyllabus?: string;
   completedQuizzes?: number;
   questsPlayed?: number;
   avatar?: string;
@@ -90,6 +92,8 @@ export interface UserStats {
   completedQuizzes: number;
   questsPlayed?: number;
   isSubscribed: boolean; // Keeping for backward compat, but strictly controlled by Auth
+  subscriptionLevel?: 'single' | 'all';
+  subscribedSyllabus?: string;
   leaderboardRank: number;
   coins?: number;
   lastLoginDate?: string;

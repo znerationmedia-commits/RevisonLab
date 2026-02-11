@@ -78,7 +78,7 @@ const CheckoutForm = ({ amount, onSuccess, onCancel }: { amount: number, onSucce
 };
 
 // Simulated Payment Form for Mock Mode
-const MockPaymentForm = ({ amount, interval, onSuccess, onCancel, clientSecret }: { amount: number, interval: string, onSuccess: () => void, onCancel: () => void, clientSecret: string }) => {
+const MockPaymentForm = ({ amount, interval, planLevel, syllabus, onSuccess, onCancel, clientSecret }: { amount: number, interval: string, planLevel: string, syllabus: string | null, onSuccess: () => void, onCancel: () => void, clientSecret: string }) => {
     const [loading, setLoading] = useState(false);
 
     const handleSimulatePayment = async () => {
@@ -93,7 +93,9 @@ const MockPaymentForm = ({ amount, interval, onSuccess, onCancel, clientSecret }
                 },
                 body: JSON.stringify({
                     paymentIntentId: clientSecret,
-                    interval: interval
+                    interval: interval,
+                    planLevel: planLevel,
+                    syllabus: syllabus
                 })
             });
 
@@ -152,7 +154,7 @@ const MockPaymentForm = ({ amount, interval, onSuccess, onCancel, clientSecret }
     );
 };
 
-export const PaymentForm = ({ amount, interval, clientSecret, onSuccess, onCancel }: { amount: number, interval: string, clientSecret: string, onSuccess: () => void, onCancel: () => void }) => {
+export const PaymentForm = ({ amount, interval, planLevel, syllabus, clientSecret, onSuccess, onCancel }: { amount: number, interval: string, planLevel: string, syllabus: string | null, clientSecret: string, onSuccess: () => void, onCancel: () => void }) => {
     const isMock = clientSecret.startsWith('mock_');
 
     const options = {
@@ -176,7 +178,7 @@ export const PaymentForm = ({ amount, interval, clientSecret, onSuccess, onCance
             </div>
 
             {isMock ? (
-                <MockPaymentForm amount={amount} interval={interval} onSuccess={onSuccess} onCancel={onCancel} clientSecret={clientSecret} />
+                <MockPaymentForm amount={amount} interval={interval} planLevel={planLevel} syllabus={syllabus} onSuccess={onSuccess} onCancel={onCancel} clientSecret={clientSecret} />
             ) : (
                 <Elements stripe={stripePromise} options={options}>
                     <CheckoutForm amount={amount} onSuccess={onSuccess} onCancel={onCancel} />

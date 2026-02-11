@@ -51,6 +51,8 @@ model User {
   subscriptionInterval  String?   // 'month' or 'year'
   subscriptionStartDate DateTime?
   subscriptionEndDate   DateTime?
+  subscriptionLevel     String?   // 'single' or 'all'
+  subscribedSyllabus    String?   // For 'single' level, which syllabus they chose
   cancelAtPeriodEnd     Boolean   @default(false)
   questsPlayed          Int       @default(0)  // Track number of quests played (free tier limit: 1)
   questsCreated         Int       @default(0)  // Track number of quests created (free tier limit: 1)

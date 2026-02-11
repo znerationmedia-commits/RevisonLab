@@ -140,8 +140,10 @@ export default function App() {
   const [paymentInterval, setPaymentInterval] = useState<'month' | 'year'>('month');
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
-  const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 25 });
+  const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
   const [showPromo, setShowPromo] = useState(true);
+  const [selectedPlanLevel, setSelectedPlanLevel] = useState<'single' | 'all'>('single');
+  const [selectedSubscriptionSyllabus, setSelectedSubscriptionSyllabus] = useState<Syllabus | null>(null);
 
   // Geolocation Effect
   useEffect(() => {
@@ -172,16 +174,16 @@ export default function App() {
         console.log("Detected Country:", code);
 
         if (code === 'SG') {
-          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9 });
+          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 16.9, amountAll: 19.9 });
         } else if (code === 'MY') {
-          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 25 });
+          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
         } else {
-          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 7 });
+          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 16.9, amountAll: 19.9 });
         }
       } catch (error) {
         console.error("Geolocation failed:", error);
-        // Default to MYR if API fails or is blocked by CORS
-        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 25 });
+        // Default to MYR
+        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
       }
     };
     detectCountry();
@@ -307,25 +309,33 @@ export default function App() {
     setView('GAME_SETUP');
   };
 
-  const handleSubscribe = async (interval: 'month' | 'year') => {
+  const handleSubscribe = async (interval: 'month' | 'year', planLevel: 'single' | 'all', syllabus: Syllabus | null = null) => {
     if (!user) {
       alert("Please login or signup first to purchase a subscription.");
       setShowLoginModal(true);
       return;
     }
 
+    if (planLevel === 'single' && !syllabus) {
+      alert("Please select a syllabus for the Single Syllabus plan.");
+      return;
+    }
+
     try {
-      console.log(`Starting embedded checkout process for ${interval}...`);
+      console.log(`Starting embedded checkout process for ${planLevel} plan (${interval})...`);
       const token = localStorage.getItem('quest_token');
 
+      const baseAmount = planLevel === 'all' ? currencyConfig.amountAll : currencyConfig.amount;
       const amount = interval === 'year'
-        ? currencyConfig.amount * 10 * 100
-        : currencyConfig.amount * 100;
+        ? baseAmount * 10 * 100 // Example: 10 months for price of 12
+        : baseAmount * 100;
 
       const body = {
-        amount,
+        amount: Math.round(amount),
         currency: currencyConfig.code.toLowerCase(),
-        interval
+        interval,
+        planLevel,
+        syllabus
       };
 
       const res = await fetch('/api/subscription/create-payment-intent', {
@@ -342,6 +352,8 @@ export default function App() {
         setPaymentClientSecret(data.clientSecret);
         setPaymentAmount(data.amount);
         setPaymentInterval(interval);
+        setSelectedPlanLevel(planLevel);
+        setSelectedSubscriptionSyllabus(syllabus);
       } else {
         const err = await res.json();
         console.error("Subscription failed:", err);
@@ -369,9 +381,18 @@ export default function App() {
 
     // Check if user is Pro
     const isPro = user?.isSubscribed;
+    const subscriptionLevel = (user as any)?.subscriptionLevel;
+    const subscribedSyllabus = (user as any)?.subscribedSyllabus;
 
     if (!isPro && usageCount >= 1) {
       setShowLimitModal(true);
+      return;
+    }
+
+    // Access Control check for Single Syllabus Plan
+    if (isPro && subscriptionLevel === 'single' && selectedSyllabus !== subscribedSyllabus) {
+      alert(`Your current plan only covers the ${subscribedSyllabus} syllabus. Please upgrade to "All Syllabus" or choose your subscribed syllabus.`);
+      setView('PRICING');
       return;
     }
 
@@ -648,6 +669,8 @@ export default function App() {
               <PaymentForm
                 amount={paymentAmount}
                 interval={paymentInterval}
+                planLevel={selectedPlanLevel}
+                syllabus={selectedSubscriptionSyllabus}
                 clientSecret={paymentClientSecret}
                 onCancel={() => setPaymentClientSecret(null)}
                 onSuccess={() => {
@@ -679,20 +702,38 @@ export default function App() {
                 </Button>
               </Card>
 
-              {/* Pro Monthly */}
+              {/* Single Syllabus Plan */}
               <Card className="p-8 md:p-10 flex flex-col items-center gap-8 border-2 border-brand-dark/5 shadow-xl relative bg-white rounded-3xl group hover:border-brand-orange/20 transition-all">
                 <div className="text-center space-y-3">
-                  <h3 className="font-display font-bold text-3xl text-brand-dark">Pro Monthly</h3>
+                  <h3 className="font-display font-bold text-3xl text-brand-dark">Single Syllabus</h3>
                   <div className="text-5xl font-display font-bold text-brand-dark">
                     {currencyConfig.symbol} {currencyConfig.amount}
                     <span className="text-lg font-normal opacity-40">/mo</span>
                   </div>
                 </div>
 
+                <div className="w-full space-y-2">
+                  <label className="text-xs font-bold text-brand-dark/40 uppercase">Choose Your Syllabus</label>
+                  <select
+                    className="w-full p-3 rounded-xl border border-gray-100 bg-gray-50 text-sm font-medium focus:ring-2 focus:ring-brand-orange/20 outline-none"
+                    onChange={(e) => setSelectedSubscriptionSyllabus(e.target.value as Syllabus)}
+                    value={selectedSubscriptionSyllabus || ''}
+                  >
+                    <option value="" disabled>Select Syllabus...</option>
+                    {Object.values(Syllabus).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <ul className="space-y-5 w-full flex-1">
                   <li className="flex items-start gap-3 text-sm font-bold text-brand-dark/80 bg-brand-orange/5 p-4 rounded-xl border border-brand-orange/10">
                     <CheckCircle2 size={20} className="text-brand-orange shrink-0" />
-                    <span>Unlimited</span>
+                    <span>Unlimited Question & Answer</span>
+                  </li>
+                  <li className="flex items-start gap-3 text-sm font-medium text-brand-dark/60">
+                    <CheckCircle2 size={18} className="text-brand-green shrink-0" />
+                    <span>One Selected Syllabus</span>
                   </li>
                 </ul>
 
@@ -700,32 +741,36 @@ export default function App() {
                   variant="primary"
                   fullWidth
                   size="lg"
-                  onClick={() => handleSubscribe('month')}
+                  onClick={() => handleSubscribe('month', 'single', selectedSubscriptionSyllabus)}
                   disabled={authLoading || user?.isSubscribed}
                   className="bg-brand-orange hover:bg-orange-400 py-6 text-lg shadow-xl shadow-brand-orange/20"
                 >
-                  {user?.isSubscribed ? 'Active Subscription' : 'Upgrade to Pro'}
+                  {user?.isSubscribed ? 'Active Subscription' : 'Choose Single Plan'}
                 </Button>
               </Card>
 
-              {/* Pro Yearly */}
+              {/* All Syllabus Plan */}
               <Card className="p-8 md:p-10 flex flex-col items-center gap-8 border-4 border-brand-orange relative shadow-2xl bg-white rounded-3xl scale-105 z-10 group">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-orange text-white px-6 py-2 rounded-full font-bold text-sm shadow-xl whitespace-nowrap animate-bounce">
-                  BEST VALUE · SAVE 10%
+                  BEST VALUE · ALL ACCESS
                 </div>
 
                 <div className="text-center space-y-3">
-                  <h3 className="font-display font-bold text-3xl text-brand-dark">Pro Yearly</h3>
+                  <h3 className="font-display font-bold text-3xl text-brand-dark">All Syllabus</h3>
                   <div className="text-5xl font-display font-bold text-brand-dark">
-                    {currencyConfig.symbol} {yearlyPrice}
-                    <span className="text-lg font-normal opacity-40">/yr</span>
+                    {currencyConfig.symbol} {currencyConfig.amountAll}
+                    <span className="text-lg font-normal opacity-40">/mo</span>
                   </div>
                 </div>
 
                 <ul className="space-y-5 w-full flex-1">
                   <li className="flex items-start gap-4 text-sm font-bold text-brand-dark/80 px-2">
                     <CheckCircle2 size={18} className="text-brand-green shrink-0" />
-                    <span>Unlimited</span>
+                    <span>Unlimited Generate Question & Quiz</span>
+                  </li>
+                  <li className="flex items-start gap-4 text-sm font-bold text-brand-dark/80 px-2">
+                    <CheckCircle2 size={18} className="text-brand-green shrink-0" />
+                    <span>All Syllabuses Included</span>
                   </li>
                 </ul>
 
@@ -733,11 +778,11 @@ export default function App() {
                   variant="primary"
                   fullWidth
                   size="lg"
-                  onClick={() => handleSubscribe('year')}
+                  onClick={() => handleSubscribe('month', 'all')}
                   disabled={authLoading || user?.isSubscribed}
                   className="bg-brand-orange hover:bg-orange-400 py-6 text-lg shadow-xl shadow-brand-orange/30 group-hover:scale-[1.02] transition-transform"
                 >
-                  {user?.isSubscribed ? 'Active Subscription' : 'Get Yearly Pro'}
+                  {user?.isSubscribed ? 'Active Subscription' : 'Upgrade to All Access'}
                 </Button>
               </Card>
             </>

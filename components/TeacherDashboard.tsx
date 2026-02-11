@@ -367,7 +367,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                         <div className="flex items-center gap-2 mt-1">
                             {user?.isSubscribed ? (
                                 <span className="bg-brand-green/10 text-brand-green text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-green/20 flex items-center gap-1">
-                                    <Sparkles size={8} /> PRO ACCOUNT
+                                    <Sparkles size={8} /> {user.subscriptionLevel === 'all' ? 'ALL ACCESS' : `PRO: ${user.subscribedSyllabus || 'Single'}`}
                                 </span>
                             ) : (
                                 <span className="bg-brand-dark/5 text-brand-dark/40 text-[10px] font-bold px-2 py-0.5 rounded-full border border-brand-dark/10">

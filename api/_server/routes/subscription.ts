@@ -12,15 +12,15 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 // Create Payment Intent for Embedded Form
 router.post('/create-payment-intent', authenticateToken, async (req: any, res: any) => {
     const user = req.user;
-    const { amount, currency, interval } = req.body;
+    const { amount, currency, interval, planLevel, syllabus } = req.body;
 
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
     const secretKey = process.env.STRIPE_SECRET_KEY || '';
     const isMockMode = !secretKey.startsWith('sk_') || process.env.STRIPE_MOCK_MODE === 'true';
 
-    // Use provided amount/currency or default to RM 25.00
-    const finalAmount = amount || 2500;
+    // Pricing: Single = 16.9, All = 19.9
+    const finalAmount = planLevel === 'all' ? 1990 : 1690;
     const finalCurrency = (currency || 'myr').toLowerCase();
 
     if (isMockMode) {
@@ -29,6 +29,8 @@ router.post('/create-payment-intent', authenticateToken, async (req: any, res: a
             clientSecret: `mock_secret_${Date.now()}`,
             amount: finalAmount,
             interval: interval || 'month',
+            planLevel: planLevel || 'single',
+            syllabus: syllabus || null,
             isMock: true
         });
     }
@@ -39,7 +41,9 @@ router.post('/create-payment-intent', authenticateToken, async (req: any, res: a
             currency: finalCurrency,
             payment_method_types: ['card'],
             metadata: {
-                userId: user.id
+                userId: user.id,
+                planLevel: planLevel || 'single',
+                syllabus: syllabus || ''
             }
         });
 
@@ -56,7 +60,7 @@ router.post('/create-payment-intent', authenticateToken, async (req: any, res: a
 
 // Update Subscription after successful payment intent
 router.post('/confirm-payment', authenticateToken, async (req: any, res: any) => {
-    const { paymentIntentId, interval } = req.body;
+    const { paymentIntentId, interval, planLevel, syllabus } = req.body;
     const userId = req.user?.id;
 
     if (!paymentIntentId || !userId) return res.status(400).json({ error: 'Missing data' });
@@ -78,6 +82,8 @@ router.post('/confirm-payment', authenticateToken, async (req: any, res: any) =>
             data: {
                 isSubscribed: true,
                 subscriptionInterval: interval || 'month',
+                subscriptionLevel: planLevel || 'single',
+                subscribedSyllabus: syllabus || null,
                 subscriptionStartDate: startDate,
                 subscriptionEndDate: endDate,
                 cancelAtPeriodEnd: false,
@@ -106,6 +112,8 @@ router.post('/confirm-payment', authenticateToken, async (req: any, res: any) =>
                 data: {
                     isSubscribed: true,
                     subscriptionInterval: interval || 'month',
+                    subscriptionLevel: (paymentIntent.metadata?.planLevel as string) || planLevel || 'single',
+                    subscribedSyllabus: (paymentIntent.metadata?.syllabus as string) || syllabus || null,
                     subscriptionStartDate: startDate,
                     subscriptionEndDate: endDate,
                     cancelAtPeriodEnd: false,
@@ -347,6 +355,8 @@ router.get('/check-subscription-status', authenticateToken, async (req: any, res
             cancelAtPeriodEnd: user.cancelAtPeriodEnd,
             subscriptionEndDate: user.subscriptionEndDate,
             subscriptionInterval: user.subscriptionInterval,
+            subscriptionLevel: user.subscriptionLevel,
+            subscribedSyllabus: user.subscribedSyllabus,
             questsPlayed: user.questsPlayed,
             questsCreated: user.questsCreated
         });
