@@ -306,6 +306,11 @@ export default function App() {
       return;
     }
     // Allow everyone to play (Demo/Free)
+    const subLevel = (user as any)?.subscriptionLevel;
+    const subSyllabus = (user as any)?.subscribedSyllabus;
+    if (user?.isSubscribed && subLevel === 'single' && subSyllabus) {
+      setSelectedSyllabus(subSyllabus as Syllabus);
+    }
     setView('GAME_SETUP');
   };
 
@@ -998,16 +1003,31 @@ export default function App() {
                   <div className="mb-8">
                     <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">1. Select Syllabus</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
-                      {Object.values(Syllabus).map((syll) => (
-                        <button
-                          key={syll}
-                          onClick={() => setSelectedSyllabus(syll)}
-                          className={`p-4 rounded-xl border-2 font-bold text-left transition-all flex items-center gap-3 ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'}`}
-                        >
-                          <ScrollText size={20} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
-                          {syll}
-                        </button>
-                      ))}
+                      {Object.values(Syllabus).map((syll) => {
+                        const isPro = user?.isSubscribed;
+                        const subLevel = (user as any)?.subscriptionLevel;
+                        const subSyllabus = (user as any)?.subscribedSyllabus;
+                        const isLocked = isPro && subLevel === 'single' && subSyllabus && subSyllabus !== syll;
+
+                        return (
+                          <button
+                            key={syll}
+                            onClick={() => !isLocked && setSelectedSyllabus(syll)}
+                            disabled={isLocked}
+                            className={`p-4 rounded-xl border-2 font-bold text-left transition-all flex items-center justify-between gap-3 ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'} ${isLocked ? 'opacity-40 cursor-not-allowed bg-gray-50' : ''}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <ScrollText size={20} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
+                              <span>{syll}</span>
+                            </div>
+                            {isLocked && (
+                              <div className="bg-brand-orange/10 text-brand-orange text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
+                                <Lock size={10} /> LOCKED
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
