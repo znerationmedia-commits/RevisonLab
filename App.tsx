@@ -19,6 +19,7 @@ import { PromotionBanner } from './components/PromotionBanner';
 import { LoginModal } from './components/LoginModal';
 import RewardsShop from './components/RewardsShop';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './components/AdminLogin';
 
 
 const INITIAL_STATS: UserStats = {
@@ -102,6 +103,13 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('quest_stats', JSON.stringify(stats));
   }, [stats]);
+
+  // Handle direct /admin navigation
+  useEffect(() => {
+    if (window.location.pathname === '/admin' || window.location.pathname === '/admin/') {
+      setView('ADMIN');
+    }
+  }, []);
 
   // Sync stats from Server User
   useEffect(() => {
@@ -1601,8 +1609,12 @@ export default function App() {
             onCoinsUpdated={(newCoins) => setStats(prev => ({ ...prev, coins: newCoins }))}
           />
         )}
-        {view === 'ADMIN' && user?.isAdmin && (
-          <AdminDashboard token={localStorage.getItem('quest_token') || ''} />
+        {view === 'ADMIN' && (
+          user?.isAdmin ? (
+            <AdminDashboard token={localStorage.getItem('quest_token') || ''} />
+          ) : (
+            <AdminLogin />
+          )
         )}
       </main>
     </div>

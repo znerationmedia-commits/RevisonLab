@@ -96,6 +96,38 @@ router.delete('/rewards/:id', async (req, res) => {
     }
 });
 
+// GET /api/admin/stats — aggregate analytics
+router.get('/stats', async (_req, res) => {
+    try {
+        const [userCount, totalCoins, totalXP, redemptionCount, mostRedeemed] = await Promise.all([
+            prisma.user.count(),
+            prisma.user.aggregate({ _sum: { coins: true } }),
+            prisma.user.aggregate({ _sum: { xp: true } }),
+            prisma.redemption.count(),
+            prisma.reward.findMany({
+                include: { _count: { select: { redemptions: true } } },
+                orderBy: { redemptions: { _count: 'desc' } },
+                take: 5
+            })
+        ]);
+
+        res.json({
+            users: userCount,
+            totalCoins: totalCoins._sum.coins || 0,
+            totalXP: totalXP._sum.xp || 0,
+            redemptions: redemptionCount,
+            popularRewards: mostRedeemed.map(r => ({
+                name: r.name,
+                count: r._count.redemptions,
+                emoji: r.emoji
+            }))
+        });
+    } catch (error) {
+        console.error('[ADMIN] Stats error:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+});
+
 // GET /api/admin/users — list all users (basic info)
 router.get('/users', async (_req, res) => {
     try {

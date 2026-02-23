@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, Package, Users } from 'lucide-react';
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, Package, Users, BarChart2, TrendingUp, DollarSign, Award } from 'lucide-react';
 
 interface Reward {
     id: string;
@@ -10,6 +10,14 @@ interface Reward {
     stock: number | null;
     isActive: boolean;
     createdAt: string;
+}
+
+interface AdminStats {
+    users: number;
+    totalCoins: number;
+    totalXP: number;
+    redemptions: number;
+    popularRewards: { name: string; count: number; emoji: string }[];
 }
 
 interface AdminDashboardProps {
@@ -23,7 +31,8 @@ const emptyForm = { name: '', description: '', emoji: '🎁', coinCost: '', stoc
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [rewards, setRewards] = useState<Reward[]>([]);
-    const [tab, setTab] = useState<'rewards' | 'users'>('rewards');
+    const [stats, setStats] = useState<AdminStats | null>(null);
+    const [tab, setTab] = useState<'analytics' | 'rewards' | 'users'>('analytics');
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editReward, setEditReward] = useState<Reward | null>(null);
@@ -54,10 +63,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         } catch { /* ignore */ }
     };
 
+    const fetchStats = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/stats`, { headers });
+            if (res.ok) setStats(await res.json());
+        } catch { /* ignore */ }
+    };
+
     useEffect(() => {
         const init = async () => {
             setLoading(true);
-            await Promise.all([fetchRewards(), fetchUsers()]);
+            await Promise.all([fetchRewards(), fetchUsers(), fetchStats()]);
             setLoading(false);
         };
         init();
@@ -87,6 +103,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             const res = await fetch(url, { method, headers, body: JSON.stringify(form) });
             if (res.ok) {
                 await fetchRewards();
+                await fetchStats();
                 setShowModal(false);
                 showToast(editReward ? 'Reward updated!' : 'Reward created!', 'success');
             } else {
@@ -114,10 +131,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             const res = await fetch(`${API_BASE}/rewards/${id}`, { method: 'DELETE', headers });
             if (res.ok) {
                 setRewards(prev => prev.filter(r => r.id !== id));
+                await fetchStats();
                 showToast('Reward deleted', 'success');
             }
         } catch { /* ignore */ }
         setDeleteConfirm(null);
+    };
+
+    const renderAnalytics = () => {
+        if (!stats) return null;
+        return (
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                        { label: 'Total Users', value: stats.users, icon: <Users className="text-blue-500" size={18} />, bg: 'bg-blue-50' },
+                        { label: 'Coins Issued', value: stats.totalCoins, icon: <DollarSign className="text-yellow-500" size={18} />, bg: 'bg-yellow-50' },
+                        { label: 'Total XP Earned', value: stats.totalXP, icon: <Award className="text-purple-500" size={18} />, bg: 'bg-purple-50' },
+                        { label: 'Redemptions', value: stats.redemptions, icon: <TrendingUp className="text-green-500" size={18} />, bg: 'bg-green-50' }
+                    ].map((s, i) => (
+                        <div key={i} className={`${s.bg} rounded-2xl p-5 border border-white/50 shadow-sm transition-all hover:shadow-md`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-wider">{s.label}</span>
+                                {s.icon}
+                            </div>
+                            <div className="text-2xl font-display font-bold text-brand-dark">{s.value.toLocaleString()}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="bg-white/80 rounded-3xl p-6 border border-white/50 shadow-sm">
+                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2">
+                        <BarChart2 size={20} className="text-brand-orange" />
+                        Popular Rewards
+                    </h3>
+                    <div className="space-y-5">
+                        {stats.popularRewards.length === 0 ? (
+                            <p className="text-center py-8 text-brand-dark/30 font-bold italic">No redemptions yet to analyze</p>
+                        ) : stats.popularRewards.map((r, i) => (
+                            <div key={i} className="flex items-center gap-4">
+                                <div className="text-2xl w-10 h-10 bg-brand-dark/5 rounded-xl flex items-center justify-center shrink-0">{r.emoji}</div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-sm truncate">{r.name}</span>
+                                        <span className="text-xs font-bold text-brand-dark/40">{r.count} redemptions</span>
+                                    </div>
+                                    <div className="w-full bg-brand-dark/5 h-2 rounded-full overflow-hidden">
+                                        <div
+                                            className="bg-brand-orange h-full rounded-full transition-all duration-1000"
+                                            style={{ width: `${stats.redemptions > 0 ? (r.count / stats.redemptions) * 100 : 0}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -135,7 +205,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-3xl font-display font-bold">Admin Dashboard</h1>
-                    <p className="text-brand-dark/40 text-sm mt-1">Manage rewards and view users</p>
+                    <p className="text-brand-dark/40 text-sm mt-1">Portal overview and data analytics</p>
                 </div>
                 {tab === 'rewards' && (
                     <button onClick={openCreate}
@@ -147,7 +217,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
 
             {/* Tabs */}
             <div className="flex gap-2 bg-white/50 p-1 rounded-2xl mb-6 w-fit">
-                {([['rewards', '🎁 Rewards'], ['users', '👥 Users']] as const).map(([key, label]) => (
+                {([['analytics', '📊 Stats'], ['rewards', '🎁 Rewards'], ['users', '👥 Users']] as const).map(([key, label]) => (
                     <button key={key} onClick={() => setTab(key)}
                         className={`px-5 py-2 rounded-xl font-bold text-sm transition-all
               ${tab === key ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark'}`}>
@@ -158,6 +228,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
 
             {loading ? (
                 <div className="text-center py-20 text-brand-dark/40 font-bold">Loading...</div>
+            ) : tab === 'analytics' ? (
+                renderAnalytics()
             ) : tab === 'rewards' ? (
                 rewards.length === 0 ? (
                     <div className="text-center py-24">
