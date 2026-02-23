@@ -39,6 +39,110 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
         const subSyllabus = (user as any)?.subscribedSyllabus;
         return (user?.isSubscribed && subLevel === 'single' && subSyllabus) ? subSyllabus as Syllabus : '';
     });
+
+    // Returns subjects available for the selected grade level and syllabus
+    const getSubjectsByGrade = (grade: GradeLevel | '', syllabus: Syllabus | ''): Subject[] => {
+        const allSubjects = Object.values(Subject);
+        if (!grade) return allSubjects;
+
+        // ── UEC (Unified Examination Certificate) ───────
+        if (syllabus === 'Unified Examination Certificate (UEC)') {
+            if ([GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3].includes(grade as GradeLevel)) {
+                return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.SCIENCE,
+                Subject.SEJARAH, Subject.GEOGRAPHY, Subject.PENDIDIKAN_MORAL, Subject.COMPUTER_SCIENCE];
+            }
+            if ([GradeLevel.FORM_4, GradeLevel.FORM_5].includes(grade as GradeLevel)) {
+                return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH,
+                Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY, Subject.GEOGRAPHY,
+                Subject.SEJARAH, Subject.ECONOMICS, Subject.BUSINESS,
+                Subject.PENDIDIKAN_MORAL, Subject.COMPUTER_SCIENCE];
+            }
+            if (grade === GradeLevel.FORM_6) {
+                return [Subject.MATH, Subject.ADD_MATH, Subject.PHYSICS, Subject.CHEMISTRY,
+                Subject.BIOLOGY, Subject.ECONOMICS, Subject.BUSINESS,
+                Subject.ENGLISH, Subject.BAHASA_MELAYU];
+            }
+        }
+
+        // ── IB (International Baccalaureate) ───────
+        if (syllabus === 'International Baccalaureate (IB)') {
+            // PYP: Year 1-6
+            if ([GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+            GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6].includes(grade as GradeLevel)) {
+                return [Subject.ENGLISH, Subject.MATH, Subject.SCIENCE];
+            }
+            // MYP: Year 7-11
+            if ([GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+            GradeLevel.YEAR_10, GradeLevel.YEAR_11].includes(grade as GradeLevel)) {
+                return [Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH, Subject.SCIENCE,
+                Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY,
+                Subject.GEOGRAPHY, Subject.SEJARAH, Subject.ECONOMICS, Subject.COMPUTER_SCIENCE];
+            }
+            // DP: Year 12-13
+            if ([GradeLevel.YEAR_12, GradeLevel.YEAR_13].includes(grade as GradeLevel)) {
+                return [Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH, Subject.PHYSICS,
+                Subject.CHEMISTRY, Subject.BIOLOGY, Subject.GEOGRAPHY,
+                Subject.ECONOMICS, Subject.BUSINESS, Subject.COMPUTER_SCIENCE];
+            }
+        }
+
+        // Lower Primary: Standard 1-3
+        if ([GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3].includes(grade as GradeLevel)) {
+            return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.SCIENCE,
+            Subject.PENDIDIKAN_ISLAM, Subject.PENDIDIKAN_MORAL];
+        }
+        // Upper Primary: Standard 4-6
+        if ([GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6].includes(grade as GradeLevel)) {
+            return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.SCIENCE,
+            Subject.SEJARAH, Subject.RBT, Subject.PENDIDIKAN_ISLAM, Subject.PENDIDIKAN_MORAL];
+        }
+        // Lower Secondary: Form 1-3
+        if ([GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3].includes(grade as GradeLevel)) {
+            return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.SCIENCE,
+            Subject.SEJARAH, Subject.GEOGRAPHY, Subject.RBT,
+            Subject.PENDIDIKAN_ISLAM, Subject.PENDIDIKAN_MORAL, Subject.COMPUTER_SCIENCE];
+        }
+        // Upper Secondary: Form 4-5
+        if ([GradeLevel.FORM_4, GradeLevel.FORM_5].includes(grade as GradeLevel)) {
+            return [Subject.BAHASA_MELAYU, Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH,
+            Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY, Subject.SEJARAH,
+            Subject.GEOGRAPHY, Subject.PENDIDIKAN_ISLAM, Subject.PENDIDIKAN_MORAL,
+            Subject.ECONOMICS, Subject.BUSINESS, Subject.COMPUTER_SCIENCE];
+        }
+        // Form 6 / STPM
+        if (grade === GradeLevel.FORM_6) {
+            return [Subject.MATH, Subject.ADD_MATH, Subject.PHYSICS, Subject.CHEMISTRY,
+            Subject.BIOLOGY, Subject.ECONOMICS, Subject.BUSINESS,
+            Subject.BAHASA_MELAYU, Subject.ENGLISH];
+        }
+        // Singapore Secondary (Sec 1-5)
+        if ([GradeLevel.SEC_1, GradeLevel.SEC_2, GradeLevel.SEC_3,
+        GradeLevel.SEC_4, GradeLevel.SEC_5].includes(grade as GradeLevel)) {
+            return [Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH, Subject.SCIENCE,
+            Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY,
+            Subject.GEOGRAPHY, Subject.SEJARAH, Subject.ECONOMICS,
+            Subject.BUSINESS, Subject.COMPUTER_SCIENCE];
+        }
+        // International primary (Year 1-6)
+        if ([GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+        GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6].includes(grade as GradeLevel)) {
+            return [Subject.ENGLISH, Subject.MATH, Subject.SCIENCE];
+        }
+        // IGCSE / Year 7-11
+        if ([GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+        GradeLevel.YEAR_10, GradeLevel.YEAR_11].includes(grade as GradeLevel)) {
+            return [Subject.ENGLISH, Subject.MATH, Subject.ADD_MATH, Subject.PHYSICS,
+            Subject.CHEMISTRY, Subject.BIOLOGY, Subject.GEOGRAPHY,
+            Subject.ECONOMICS, Subject.BUSINESS, Subject.COMPUTER_SCIENCE];
+        }
+        // A-Level / Year 12-13
+        if ([GradeLevel.YEAR_12, GradeLevel.YEAR_13].includes(grade as GradeLevel)) {
+            return [Subject.MATH, Subject.ADD_MATH, Subject.PHYSICS, Subject.CHEMISTRY,
+            Subject.BIOLOGY, Subject.ECONOMICS, Subject.BUSINESS,
+            Subject.COMPUTER_SCIENCE, Subject.ENGLISH];
+        }
+        return allSubjects;
+    };
     const [questions, setQuestions] = useState<Question[]>([]);
 
     // Current Question Form State
@@ -215,32 +319,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Subject</label>
-                            <select
-                                value={questSubject}
-                                onChange={(e) => setQuestSubject(e.target.value as Subject)}
-                                className="w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold"
-                            >
-                                <option value="">Select Subject</option>
-                                {Object.values(Subject).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Grade</label>
-                            <select
-                                value={questGrade}
-                                onChange={(e) => setQuestGrade(e.target.value as GradeLevel)}
-                                className="w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold"
-                            >
-                                <option value="">Select Grade</option>
-                                {Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                        </div>
-                        <div>
                             <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Syllabus</label>
                             <select
                                 value={questSyllabus}
-                                onChange={(e) => setQuestSyllabus(e.target.value as Syllabus)}
+                                onChange={(e) => {
+                                    setQuestSyllabus(e.target.value as Syllabus);
+                                    setQuestGrade(''); // reset grade when syllabus changes
+                                    setQuestSubject('');
+                                }}
                                 disabled={(user as any)?.subscriptionLevel === 'single'}
                                 className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${(user as any)?.subscriptionLevel === 'single' ? 'bg-gray-100 opacity-60' : ''}`}
                             >
@@ -250,6 +336,64 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                             {(user as any)?.subscriptionLevel === 'single' && (
                                 <p className="text-[10px] text-brand-orange font-bold mt-1 uppercase">Locked to Subscribed Syllabus</p>
                             )}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Grade</label>
+                            <select
+                                value={questGrade}
+                                onChange={(e) => {
+                                    setQuestGrade(e.target.value as GradeLevel);
+                                    setQuestSubject(''); // reset subject when grade changes
+                                }}
+                                disabled={!questSyllabus}
+                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${!questSyllabus ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                            >
+                                <option value="">{questSyllabus ? 'Select Grade' : 'Select Syllabus first'}</option>
+                                {questSyllabus === 'Unified Examination Certificate (UEC)'
+                                    ? [GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3,
+                                    GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6]
+                                        .map(g => <option key={g} value={g}>{g}</option>)
+                                    : questSyllabus === 'Malaysian National Curriculum (KSSR/KSSM)'
+                                        ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3,
+                                        GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6],
+                                        ...[GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3,
+                                        GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6]]
+                                            .map(g => <option key={g} value={g}>{g}</option>)
+                                        : questSyllabus === 'Singapore MOE Syllabus (PSLE/O-Level)'
+                                            ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3,
+                                            GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6],
+                                            ...[GradeLevel.SEC_1, GradeLevel.SEC_2, GradeLevel.SEC_3,
+                                            GradeLevel.SEC_4, GradeLevel.SEC_5]]
+                                                .map(g => <option key={g} value={g}>{g}</option>)
+                                            : questSyllabus === 'Cambridge IGCSE'
+                                                ? [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+                                                GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6,
+                                                GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+                                                GradeLevel.YEAR_10, GradeLevel.YEAR_11,
+                                                GradeLevel.YEAR_12, GradeLevel.YEAR_13]
+                                                    .map(g => <option key={g} value={g}>{g}</option>)
+                                                : questSyllabus === 'International Baccalaureate (IB)'
+                                                    ? [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+                                                    GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6,
+                                                    GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+                                                    GradeLevel.YEAR_10, GradeLevel.YEAR_11,
+                                                    GradeLevel.YEAR_12, GradeLevel.YEAR_13]
+                                                        .map(g => <option key={g} value={g}>{g}</option>)
+                                                    : Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Subject</label>
+                            <select
+                                value={questSubject}
+                                onChange={(e) => setQuestSubject(e.target.value as Subject)}
+                                disabled={!questGrade}
+                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${!questGrade ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                            >
+                                <option value="">{questGrade ? 'Select Subject' : 'Select Grade first'}</option>
+                                {getSubjectsByGrade(questGrade, questSyllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
                         </div>
                     </div>
                 </Card>

@@ -220,9 +220,20 @@ export default function App() {
       const allValues = [...available.primary, ...available.secondary, ...(available.advanced || [])];
       if (!allValues.includes(selectedGrade)) {
         setSelectedGrade(null);
+        setSelectedSubject(null);
       }
     }
   }, [selectedSyllabus]);
+
+  // Reset subject if not available for current grade
+  useEffect(() => {
+    if (selectedGrade && selectedSubject) {
+      const available = getSubjectsByGrade(selectedGrade, selectedSyllabus);
+      if (!available.some(s => s.id === selectedSubject)) {
+        setSelectedSubject(null);
+      }
+    }
+  }, [selectedGrade]);
 
   const getGradesBySyllabus = (syll: Syllabus) => {
     const all = Object.values(GradeLevel);
@@ -244,6 +255,12 @@ export default function App() {
           secondary: all.filter(g => g.startsWith('Year') && parseInt(g.split(' ')[1]) > 6 && parseInt(g.split(' ')[1]) <= 11),
           advanced: all.filter(g => ['Year 12 (A-Level)', 'Year 13 (A-Level)'].includes(g)) // IB also uses Year 12-13
         };
+      case Syllabus.UEC:
+        // UEC: Chinese independent schools — Junior Middle (Form 1-3) + Senior Middle (Form 4-6)
+        return {
+          primary: all.filter(g => [GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3].includes(g as GradeLevel)),
+          secondary: all.filter(g => [GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6].includes(g as GradeLevel))
+        };
       case Syllabus.KSSR_KSSM:
       default:
         return {
@@ -251,6 +268,245 @@ export default function App() {
           secondary: all.filter(g => g.startsWith('Form'))
         };
     }
+  };
+
+  // Returns only the subjects available for a given grade level (and syllabus context)
+  const getSubjectsByGrade = (grade: GradeLevel | null, syllabus: Syllabus | null) => {
+    if (!grade) return SUBJECTS;
+
+    // ─── UEC (Unified Examination Certificate) ─────────────────────────────────
+    // UEC Junior Middle: Form 1-3
+    if (syllabus === Syllabus.UEC &&
+      (grade === GradeLevel.FORM_1 || grade === GradeLevel.FORM_2 || grade === GradeLevel.FORM_3)) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+        Subject.SEJARAH,
+        Subject.GEOGRAPHY,
+        Subject.PENDIDIKAN_MORAL,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+    // UEC Senior Middle: Form 4-5
+    if (syllabus === Syllabus.UEC &&
+      (grade === GradeLevel.FORM_4 || grade === GradeLevel.FORM_5)) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.GEOGRAPHY,
+        Subject.SEJARAH,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.PENDIDIKAN_MORAL,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+    // UEC Senior Middle: Form 6
+    if (syllabus === Syllabus.UEC && grade === GradeLevel.FORM_6) {
+      return SUBJECTS.filter(s => [
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.ENGLISH,
+        Subject.BAHASA_MELAYU,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── IB (International Baccalaureate) ──────────────────────────────────────
+    // IB PYP: Year 1-6
+    if (syllabus === Syllabus.IB &&
+      [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+      GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6].includes(grade)) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+      ].includes(s.id as Subject));
+    }
+    // IB MYP: Year 7-11
+    if (syllabus === Syllabus.IB &&
+      [GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+      GradeLevel.YEAR_10, GradeLevel.YEAR_11].includes(grade)) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.SCIENCE,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.GEOGRAPHY,
+        Subject.SEJARAH,
+        Subject.ECONOMICS,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+    // IB DP: Year 12-13
+    if (syllabus === Syllabus.IB &&
+      (grade === GradeLevel.YEAR_12 || grade === GradeLevel.YEAR_13)) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.GEOGRAPHY,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── Malaysian KSSR (Primary: Standard 1-6) ─────────────────────────────────
+    if (grade === GradeLevel.STD_1 || grade === GradeLevel.STD_2 || grade === GradeLevel.STD_3) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+        Subject.PENDIDIKAN_ISLAM,
+        Subject.PENDIDIKAN_MORAL,
+      ].includes(s.id as Subject));
+    }
+    if (grade === GradeLevel.STD_4 || grade === GradeLevel.STD_5 || grade === GradeLevel.STD_6) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+        Subject.SEJARAH,
+        Subject.RBT,
+        Subject.PENDIDIKAN_ISLAM,
+        Subject.PENDIDIKAN_MORAL,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── Malaysian KSSM (Secondary: Form 1-3) ───────────────────────────────────
+    if (grade === GradeLevel.FORM_1 || grade === GradeLevel.FORM_2 || grade === GradeLevel.FORM_3) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+        Subject.SEJARAH,
+        Subject.GEOGRAPHY,
+        Subject.RBT,
+        Subject.PENDIDIKAN_ISLAM,
+        Subject.PENDIDIKAN_MORAL,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── Malaysian KSSM (Secondary: Form 4-5) ───────────────────────────────────
+    if (grade === GradeLevel.FORM_4 || grade === GradeLevel.FORM_5) {
+      return SUBJECTS.filter(s => [
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.SEJARAH,
+        Subject.GEOGRAPHY,
+        Subject.PENDIDIKAN_ISLAM,
+        Subject.PENDIDIKAN_MORAL,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── Form 6 / STPM ─────────────────────────────────────────────────────────
+    if (grade === GradeLevel.FORM_6) {
+      return SUBJECTS.filter(s => [
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.BAHASA_MELAYU,
+        Subject.ENGLISH,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── Singapore MOE (Secondary: Sec 1-5) ────────────────────────────────────
+    if (grade === GradeLevel.SEC_1 || grade === GradeLevel.SEC_2 ||
+      grade === GradeLevel.SEC_3 || grade === GradeLevel.SEC_4 || grade === GradeLevel.SEC_5) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.SCIENCE,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.GEOGRAPHY,
+        Subject.SEJARAH,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── IGCSE / Cambridge: Year 1-6 (Primary) ─────────────────────────────────
+    if ([GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
+    GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6].includes(grade)) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── IGCSE / Cambridge: Year 7-11 ──────────────────────────────────────────
+    if ([GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
+    GradeLevel.YEAR_10, GradeLevel.YEAR_11].includes(grade)) {
+      return SUBJECTS.filter(s => [
+        Subject.ENGLISH,
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.GEOGRAPHY,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.COMPUTER_SCIENCE,
+      ].includes(s.id as Subject));
+    }
+
+    // ─── A-Level / Year 12-13 ──────────────────────────────────────────────────
+    if (grade === GradeLevel.YEAR_12 || grade === GradeLevel.YEAR_13) {
+      return SUBJECTS.filter(s => [
+        Subject.MATH,
+        Subject.ADD_MATH,
+        Subject.PHYSICS,
+        Subject.CHEMISTRY,
+        Subject.BIOLOGY,
+        Subject.ECONOMICS,
+        Subject.BUSINESS,
+        Subject.COMPUTER_SCIENCE,
+        Subject.ENGLISH,
+      ].includes(s.id as Subject));
+    }
+
+    // Fallback: return all subjects
+    return SUBJECTS;
   };
 
   // Scroll Reveal Observer
@@ -1093,18 +1349,25 @@ export default function App() {
                   {/* Step 3: Subject Selection */}
                   <div className="mb-8">
                     <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">3. Choose Subject</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                      {SUBJECTS.map((sub) => (
-                        <button
-                          key={sub.id}
-                          onClick={() => setSelectedSubject(sub.id)}
-                          className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${selectedSubject === sub.id ? 'border-brand-blue bg-white shadow-md scale-105' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                        >
-                          <div className={`${sub.color} w-10 h-10 flex items-center justify-center rounded-full text-lg shadow-sm`}>{sub.icon}</div>
-                          <span className="font-bold text-xs text-center leading-tight">{sub.id}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {!selectedGrade ? (
+                      <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-brand-dark/20 rounded-xl text-brand-dark/40">
+                        <BookOpen size={24} className="mb-1" />
+                        <p className="text-sm">Select a grade first to see available subjects</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {getSubjectsByGrade(selectedGrade, selectedSyllabus).map((sub) => (
+                          <button
+                            key={sub.id}
+                            onClick={() => setSelectedSubject(sub.id)}
+                            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${selectedSubject === sub.id ? 'border-brand-blue bg-white shadow-md scale-105' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                          >
+                            <div className={`${sub.color} w-10 h-10 flex items-center justify-center rounded-full text-lg shadow-sm`}>{sub.icon}</div>
+                            <span className="font-bold text-xs text-center leading-tight">{sub.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Step 4: Topic Selection */}
