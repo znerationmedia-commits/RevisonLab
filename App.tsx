@@ -1118,34 +1118,34 @@ export default function App() {
         <p className="text-brand-dark/60">Great job, {user?.name}!</p>
       </div>
 
-      {/* EXP Bar Section */}
+      {/* Level Card */}
+      <Card className="bg-white/80 p-6 flex items-center gap-5 shadow-lg border border-white/50">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-3xl shadow-lg shadow-brand-blue/30 shrink-0">
+          {stats.level}
+        </div>
+        <div>
+          <p className="text-xs font-bold text-brand-dark/40 uppercase tracking-widest">Current Level</p>
+          <p className="font-display font-bold text-2xl text-brand-dark leading-tight">Level {stats.level}</p>
+          <p className="text-sm font-bold text-brand-blue">{getLevelTitle(stats.level)}</p>
+        </div>
+      </Card>
+
+      {/* EXP Bar */}
       <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border border-white/50">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-2xl shadow-lg shadow-brand-blue/30">
-              {stats.level}
-            </div>
-            <div>
-              <p className="font-display font-bold text-xl text-brand-dark leading-tight">Level {stats.level}</p>
-              <p className="text-sm font-bold text-brand-dark/40">{getLevelTitle(stats.level)}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs font-bold text-brand-dark/40 uppercase tracking-wide">Next Level</p>
-            <p className="font-bold text-brand-dark">
-              <span className="text-brand-blue">{xpIntoLevel}</span>
-              <span className="text-brand-dark/30"> / {xpToNextLevel} XP</span>
-            </p>
-          </div>
+          <span className="text-xs font-bold text-brand-dark/40 uppercase tracking-wide flex items-center gap-1">
+            <Star size={12} /> Experience
+          </span>
+          <p className="font-bold text-sm text-brand-dark">
+            <span className="text-brand-blue">{xpIntoLevel}</span>
+            <span className="text-brand-dark/30"> / {xpToNextLevel} XP</span>
+          </p>
         </div>
-
-        {/* EXP Bar */}
         <div className="relative w-full bg-brand-dark/5 rounded-full h-5 overflow-hidden">
           <div
             className="h-full rounded-full bg-gradient-to-r from-brand-blue via-indigo-500 to-purple-500 transition-all duration-1000 ease-out relative overflow-hidden"
             style={{ width: `${expPercent}%` }}
           >
-            {/* Shimmer on bar */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-[shimmer_2s_ease-in-out_infinite]" />
           </div>
           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-brand-dark/40">{expPercent}%</span>
@@ -1155,17 +1155,8 @@ export default function App() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
-          <div className="p-3 bg-blue-100 rounded-full text-brand-blue mb-2"><Star /></div>
-          <div className="text-4xl font-bold text-brand-blue mb-1">{stats.xp}</div>
-          <div className="text-sm font-bold uppercase text-brand-dark/50">Total XP</div>
-        </Card>
-        <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
-          <div className="p-3 bg-green-100 rounded-full text-brand-green mb-2"><Zap /></div>
-          <div className="text-4xl font-bold text-brand-green mb-1">{stats.level}</div>
-          <div className="text-sm font-bold uppercase text-brand-dark/50">Level</div>
-        </Card>
+      {/* Day Streak + Gold Coins */}
+      <div className="grid grid-cols-2 gap-4">
         <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
           <div className="p-3 bg-orange-100 rounded-full text-brand-orange mb-2"><Trophy /></div>
           <div className="text-4xl font-bold text-brand-orange mb-1">{stats.streak}</div>
