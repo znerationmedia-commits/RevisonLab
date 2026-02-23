@@ -22,6 +22,7 @@ interface UserStats {
     totalQuestions: number;
     totalCorrect: number;
     accuracy: number;
+    subjectsDone: string[];
 }
 
 interface PerformanceMetric {
@@ -280,7 +281,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                                     <p className="font-bold text-brand-dark">{u.name}</p>
                                     {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
                                 </div>
-                                <p className="text-xs text-brand-dark/40 truncate">{u.email}</p>
+                                <p className="text-[10px] text-brand-dark/40 font-medium truncate uppercase tracking-tighter">{u.email}</p>
+                                {u.subjectsDone && u.subjectsDone.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {u.subjectsDone.slice(0, 3).map((s, i) => (
+                                            <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-bold border border-blue-100 uppercase">
+                                                {s}
+                                            </span>
+                                        ))}
+                                        {u.subjectsDone.length > 3 && <span className="text-[8px] text-brand-dark/30 font-bold">+{u.subjectsDone.length - 3}</span>}
+                                    </div>
+                                )}
                             </div>
                             <div className="hidden md:flex items-center gap-8 text-center">
                                 <div>

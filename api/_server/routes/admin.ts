@@ -68,7 +68,8 @@ router.get('/users', async (_req, res) => {
                 results: {
                     select: {
                         totalQuestions: true,
-                        correctAnswers: true
+                        correctAnswers: true,
+                        subject: true
                     }
                 }
             },
@@ -79,11 +80,14 @@ router.get('/users', async (_req, res) => {
         const usersWithStats = users.map(u => {
             const totalQ = u.results.reduce((sum, r) => sum + r.totalQuestions, 0);
             const totalC = u.results.reduce((sum, r) => sum + r.correctAnswers, 0);
+            const subjects = Array.from(new Set(u.results.map(r => r.subject).filter(Boolean))).sort();
+
             return {
                 ...u,
                 totalQuestions: totalQ,
                 totalCorrect: totalC,
                 accuracy: totalQ ? Math.round((totalC / totalQ) * 100) : 0,
+                subjectsDone: subjects,
                 results: undefined // Clear raw results
             };
         });

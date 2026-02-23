@@ -724,7 +724,8 @@ export default function App() {
             mode: gameMode,
             questId: selectedCustomQuest?.id,
             correctAnswers,
-            totalQuestions: questions.length
+            totalQuestions: questions.length,
+            subject: gameMode === 'AI' ? selectedSubject : selectedCustomQuest?.subject
           })
         });
         if (!res.ok) console.error("Failed to save result");
@@ -1607,7 +1608,7 @@ export default function App() {
           )
         }
       </main>
-      <Footer />
+      {view !== 'ADMIN' && <Footer />}
     </div>
   );
 }
