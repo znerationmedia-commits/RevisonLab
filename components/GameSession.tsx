@@ -179,9 +179,18 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
               )}
 
               <div className="bg-white/60 p-5 rounded-xl border border-white/50">
-                <div className="flex items-center gap-2 mb-3 text-brand-blue">
-                  <Lightbulb size={20} className="fill-brand-blue text-brand-blue" />
-                  <span className="font-bold text-sm uppercase tracking-wide">Learner's Note</span>
+                <div className="flex items-center gap-2 mb-3">
+                  {selectedOption !== currentQuestion.correctAnswerIndex ? (
+                    <>
+                      <XCircle size={20} className="text-red-500" />
+                      <span className="font-bold text-sm uppercase tracking-wide text-red-500">Why was that wrong?</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lightbulb size={20} className="fill-brand-blue text-brand-blue" />
+                      <span className="font-bold text-sm uppercase tracking-wide text-brand-blue">Did You Know?</span>
+                    </>
+                  )}
                 </div>
                 <div className="text-brand-dark/90 leading-relaxed font-medium space-y-2 text-left">
                   {currentQuestion.explanation.split('\n').map((line, i) => (
