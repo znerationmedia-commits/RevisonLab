@@ -17,6 +17,8 @@ import { FAQ } from './components/FAQ';
 import { Footer } from './components/Footer';
 import { PromotionBanner } from './components/PromotionBanner';
 import { LoginModal } from './components/LoginModal';
+import RewardsShop from './components/RewardsShop';
+import AdminDashboard from './components/AdminDashboard';
 
 
 const INITIAL_STATS: UserStats = {
@@ -1230,6 +1232,24 @@ export default function App() {
                   )}
                 </div>
               )}
+              {/* Rewards button */}
+              {user && (
+                <button
+                  onClick={() => { setView('REWARDS'); setShowProfileMenu(false); }}
+                  className="hidden md:flex items-center gap-1.5 bg-brand-orange/10 hover:bg-brand-orange/20 border border-brand-orange/20 text-brand-orange px-3 py-1 rounded-full font-bold text-sm transition-all"
+                >
+                  🛍️ Rewards
+                </button>
+              )}
+              {/* Admin button */}
+              {user?.isAdmin && (
+                <button
+                  onClick={() => { setView('ADMIN'); setShowProfileMenu(false); }}
+                  className="hidden md:flex items-center gap-1.5 bg-purple-100 hover:bg-purple-200 border border-purple-200 text-purple-700 px-3 py-1 rounded-full font-bold text-sm transition-all"
+                >
+                  ⚙️ Admin
+                </button>
+              )}
               {/* Show Coins in Navbar */}
               <div className="hidden items-center gap-1 bg-yellow-100/80 px-3 py-1 rounded-full border border-yellow-200 text-yellow-700 sm:flex">
                 <Coins className="w-4 h-4 fill-yellow-500" />
@@ -1261,6 +1281,20 @@ export default function App() {
                     >
                       <UserIcon size={16} /> Dashboard
                     </button>
+                    <button
+                      onClick={() => { setView('REWARDS'); setShowProfileMenu(false); }}
+                      className="w-full text-left px-4 py-3 hover:bg-orange-50 text-sm font-bold text-brand-dark/70 hover:text-brand-orange flex items-center gap-2 transition-colors"
+                    >
+                      🛍️ Rewards Shop
+                    </button>
+                    {user?.isAdmin && (
+                      <button
+                        onClick={() => { setView('ADMIN'); setShowProfileMenu(false); }}
+                        className="w-full text-left px-4 py-3 hover:bg-purple-50 text-sm font-bold text-purple-600 flex items-center gap-2 transition-colors"
+                      >
+                        ⚙️ Admin Dashboard
+                      </button>
+                    )}
                     {user.isSubscribed && (
                       <div className="px-4 py-2 bg-brand-orange/5 border-b border-brand-dark/5">
                         <div className="flex justify-between items-center text-[10px] font-bold">
@@ -1560,6 +1594,16 @@ export default function App() {
           />
         )}
         {view === 'DASHBOARD' && renderDashboard()}
+        {view === 'REWARDS' && user && (
+          <RewardsShop
+            userCoins={stats.coins || 0}
+            token={localStorage.getItem('quest_token') || ''}
+            onCoinsUpdated={(newCoins) => setStats(prev => ({ ...prev, coins: newCoins }))}
+          />
+        )}
+        {view === 'ADMIN' && user?.isAdmin && (
+          <AdminDashboard token={localStorage.getItem('quest_token') || ''} />
+        )}
       </main>
     </div>
   );

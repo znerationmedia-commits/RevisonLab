@@ -82,6 +82,7 @@ export interface User {
   questsPlayed?: number;
   avatar?: string;
   password?: string;
+  isAdmin?: boolean;
 }
 
 export interface UserStats {
@@ -118,4 +119,4 @@ export interface CustomQuest {
   questions: Question[];
 }
 
-export type ViewState = 'HOME' | 'PRICING' | 'GAME_SETUP' | 'GAME_SESSION' | 'DASHBOARD' | 'TEACHER_DASHBOARD';
+export type ViewState = 'HOME' | 'PRICING' | 'GAME_SETUP' | 'GAME_SESSION' | 'DASHBOARD' | 'TEACHER_DASHBOARD' | 'REWARDS' | 'ADMIN';

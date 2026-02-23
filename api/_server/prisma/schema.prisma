@@ -55,10 +55,36 @@ model User {
   subscriptionLevel     String?   // 'single' or 'all'
   subscribedSyllabus    String?   // For 'single' level, which syllabus they chose
   cancelAtPeriodEnd     Boolean   @default(false)
+  isAdmin              Boolean   @default(false)
   questsPlayed          Int       @default(0)  // Track number of quests played (free tier limit: 1)
   questsCreated         Int       @default(0)  // Track number of quests created (free tier limit: 1)
   quests                Quest[]
   results               Result[]
+  redemptions           Redemption[]
+}
+
+model Reward {
+  id          String       @id @default(uuid())
+  name        String
+  description String
+  emoji       String       @default("🎁")
+  coinCost    Int
+  stock       Int?         // null = unlimited
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id         String   @id @default(uuid())
+  userId     String
+  rewardId   String
+  redeemedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  reward     Reward   @relation(fields: [rewardId], references: [id])
+
+  @@index([userId])
+  @@index([rewardId])
 }
 
 model PendingUser {
