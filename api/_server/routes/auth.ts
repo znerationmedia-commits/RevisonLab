@@ -210,6 +210,7 @@ router.post('/login', async (req, res) => {
                 subscriptionLevel: user.subscriptionLevel,
                 subscribedSyllabus: user.subscribedSyllabus,
                 cancelAtPeriodEnd: user.cancelAtPeriodEnd,
+                isAdmin: user.isAdmin,
                 questsPlayed: user.questsPlayed,
                 questsCreated: user.questsCreated,
                 completedQuizzes: user._count.results
@@ -253,6 +254,7 @@ router.get('/me', authenticateToken, checkExpiredSubscriptions, async (req: Auth
                 subscriptionLevel: user.subscriptionLevel,
                 subscribedSyllabus: user.subscribedSyllabus,
                 cancelAtPeriodEnd: user.cancelAtPeriodEnd,
+                isAdmin: user.isAdmin,
                 questsPlayed: user.questsPlayed,
                 questsCreated: user.questsCreated,
                 completedQuizzes: user._count.results
