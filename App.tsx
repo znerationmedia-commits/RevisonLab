@@ -241,8 +241,8 @@ export default function App() {
       case Syllabus.IGCSE:
         return {
           primary: all.filter(g => ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6'].includes(g)),
-          secondary: all.filter(g => ['Year 7', 'Year 8', 'Year 9', 'Year 10 (IGCSE)', 'Year 11 (IGCSE)'].includes(g)),
-          advanced: all.filter(g => ['Year 12 (A-Level)', 'Year 13 (A-Level)'].includes(g))
+          secondary: all.filter(g => ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11'].includes(g)),
+          advanced: all.filter(g => ['Year 12', 'Year 13'].includes(g))
         };
       case Syllabus.MOE_SINGAPORE:
         return {
@@ -253,7 +253,7 @@ export default function App() {
         return {
           primary: all.filter(g => g.startsWith('Year') && parseInt(g.split(' ')[1]) <= 6),
           secondary: all.filter(g => g.startsWith('Year') && parseInt(g.split(' ')[1]) > 6 && parseInt(g.split(' ')[1]) <= 11),
-          advanced: all.filter(g => ['Year 12 (A-Level)', 'Year 13 (A-Level)'].includes(g)) // IB also uses Year 12-13
+          advanced: all.filter(g => ['Year 12', 'Year 13'].includes(g)) // IB also uses Year 12-13
         };
       case Syllabus.UEC:
         // UEC: Chinese independent schools — Junior Middle (Form 1-3) + Senior Middle (Form 4-6)
