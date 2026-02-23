@@ -19,6 +19,7 @@ import { FAQ } from './components/FAQ';
 import { Footer } from './components/Footer';
 import { PromotionBanner } from './components/PromotionBanner';
 import { SyllabusExplorer } from './components/SyllabusExplorer';
+import RewardsShop from './components/RewardsShop';
 
 
 const INITIAL_STATS: UserStats = {
@@ -1594,6 +1595,15 @@ export default function App() {
               questions={questions}
               onComplete={handleGameComplete}
               onExit={() => setView('HOME')}
+            />
+          )
+        }
+        {
+          view === 'REWARDS' && user && (
+            <RewardsShop
+              token={localStorage.getItem('quest_token') || ''}
+              userCoins={stats.coins || 0}
+              onCoinsUpdated={(newCoins) => setStats(prev => ({ ...prev, coins: newCoins }))}
             />
           )
         }

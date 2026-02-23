@@ -138,4 +138,88 @@ router.get('/users/:userId/performance', async (req, res) => {
     }
 });
 
+// --- REWARD MANAGEMENT ---
+
+// GET /api/admin/rewards — list all rewards (including inactive)
+router.get('/rewards', async (_req, res) => {
+    try {
+        const rewards = await prisma.reward.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(rewards);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch rewards' });
+    }
+});
+
+// POST /api/admin/rewards — create a new reward
+router.post('/rewards', async (req, res) => {
+    try {
+        const { title, description, coinCost, icon, stock } = req.body;
+        const reward = await prisma.reward.create({
+            data: { title, description, coinCost, icon, stock: stock || null }
+        });
+        res.json(reward);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create reward' });
+    }
+});
+
+// PUT /api/admin/rewards/:id — update a reward
+router.put('/rewards/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const data = req.body;
+        const reward = await prisma.reward.update({
+            where: { id },
+            data
+        });
+        res.json(reward);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update reward' });
+    }
+});
+
+// DELETE /api/admin/rewards/:id — delete a reward
+router.delete('/rewards/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.reward.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete reward' });
+    }
+});
+
+// GET /api/admin/redemptions — list all redemptions
+router.get('/redemptions', async (_req, res) => {
+    try {
+        const redemptions = await prisma.redemption.findMany({
+            include: {
+                user: { select: { name: true, email: true } },
+                reward: { select: { title: true } }
+            },
+            orderBy: { redeemedAt: 'desc' }
+        });
+        res.json(redemptions);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch redemptions' });
+    }
+});
+
+// PATCH /api/admin/redemptions/:id — update redemption status
+router.patch('/redemptions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    try {
+        const redemption = await prisma.redemption.update({
+            where: { id },
+            data: { status }
+        });
+        res.json(redemption);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update redemption' });
+    }
+});
+
 export default router;

@@ -11,6 +11,7 @@ import generationRoutes from './_server/routes/generation.js';
 import testRoutes from './_server/routes/test.js';
 import webhookRoutes from './_server/routes/webhooks.js';
 import adminRoutes from './_server/routes/admin.js';
+import rewardRoutes from './_server/routes/rewards.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/generate', generationRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/rewards', rewardRoutes);
 
 app.get('/api', (req, res) => {
     res.send('RevisionLab API is running on Vercel');

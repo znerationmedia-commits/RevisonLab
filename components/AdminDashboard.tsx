@@ -1,5 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BarChart2, TrendingUp, Award, Calendar, CheckCircle, XCircle, ChevronRight, ArrowLeft, Target, BookOpen } from 'lucide-react';
+import {
+    Users,
+    TrendingUp,
+    Calendar,
+    CheckCircle,
+    XCircle,
+    ChevronRight,
+    ArrowLeft,
+    Target,
+    BookOpen,
+    LayoutDashboard,
+    ShoppingBag,
+    Gift,
+    Plus,
+    Edit2,
+    Trash2,
+    Search,
+    Filter,
+    MoreVertical,
+    Clock
+} from 'lucide-react';
 
 interface AdminStats {
     users: number;
@@ -25,6 +45,26 @@ interface UserStats {
     subjectsDone: string[];
 }
 
+interface Reward {
+    id: string;
+    title: string;
+    description: string | null;
+    coinCost: number;
+    icon: string | null;
+    stock: number | null;
+    isActive: boolean;
+}
+
+interface Redemption {
+    id: string;
+    userId: string;
+    rewardId: string;
+    status: string;
+    redeemedAt: string;
+    user: { name: string; email: string };
+    reward: { title: string };
+}
+
 interface PerformanceMetric {
     date: string;
     answered: number;
@@ -40,13 +80,17 @@ const API_BASE = '/api/admin';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [stats, setStats] = useState<AdminStats | null>(null);
-    const [tab, setTab] = useState<'analytics' | 'users'>('analytics');
+    const [tab, setTab] = useState<'analytics' | 'users' | 'rewards' | 'redemptions'>('analytics');
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<UserStats[]>([]);
+    const [rewards, setRewards] = useState<Reward[]>([]);
+    const [redemptions, setRedemptions] = useState<Redemption[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserStats | null>(null);
     const [userPerformance, setUserPerformance] = useState<PerformanceMetric[]>([]);
     const [loadingPerformance, setLoadingPerformance] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+    const [showRewardModal, setShowRewardModal] = useState(false);
+    const [editingReward, setEditingReward] = useState<Reward | null>(null);
 
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
@@ -55,18 +99,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         setTimeout(() => setToast(null), 3000);
     };
 
-    const fetchUsers = async () => {
+    const fetchData = async () => {
+        setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/users`, { headers });
-            if (res.ok) setUsers(await res.json());
-        } catch { /* ignore */ }
-    };
+            const [uRes, sRes, rRes, rdRes] = await Promise.all([
+                fetch(`${API_BASE}/users`, { headers }),
+                fetch(`${API_BASE}/stats`, { headers }),
+                fetch(`${API_BASE}/rewards`, { headers }),
+                fetch(`${API_BASE}/redemptions`, { headers })
+            ]);
 
-    const fetchStats = async () => {
-        try {
-            const res = await fetch(`${API_BASE}/stats`, { headers });
-            if (res.ok) setStats(await res.json());
-        } catch { /* ignore */ }
+            if (uRes.ok) setUsers(await uRes.json());
+            if (sRes.ok) setStats(await sRes.json());
+            if (rRes.ok) setRewards(await rRes.json());
+            if (rdRes.ok) setRedemptions(await rdRes.json());
+        } catch (error) {
+            showToast('Failed to refresh data', 'error');
+        }
+        setLoading(false);
     };
 
     const fetchUserPerformance = async (userId: string) => {
@@ -81,12 +131,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     };
 
     useEffect(() => {
-        const init = async () => {
-            setLoading(true);
-            await Promise.all([fetchUsers(), fetchStats()]);
-            setLoading(false);
-        };
-        init();
+        fetchData();
     }, [token]);
 
     const handleBackToUsers = () => {
@@ -99,47 +144,120 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         fetchUserPerformance(user.id);
     };
 
+    const handleSaveReward = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const data = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            coinCost: parseInt(formData.get('coinCost') as string),
+            icon: formData.get('icon'),
+            stock: formData.get('stock') ? parseInt(formData.get('stock') as string) : null,
+            isActive: true
+        };
+
+        try {
+            const url = editingReward ? `${API_BASE}/rewards/${editingReward.id}` : `${API_BASE}/rewards`;
+            const res = await fetch(url, {
+                method: editingReward ? 'PUT' : 'POST',
+                headers,
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                showToast(`Reward ${editingReward ? 'updated' : 'created'} successfully`, 'success');
+                setShowRewardModal(false);
+                setEditingReward(null);
+                fetchData();
+            } else {
+                showToast('Failed to save reward', 'error');
+            }
+        } catch {
+            showToast('Error saving reward', 'error');
+        }
+    };
+
+    const handleDeleteReward = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this reward?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/rewards/${id}`, { method: 'DELETE', headers });
+            if (res.ok) {
+                showToast('Reward deleted', 'success');
+                fetchData();
+            }
+        } catch {
+            showToast('Error deleting reward', 'error');
+        }
+    };
+
+    const handleUpdateRedemption = async (id: string, status: string) => {
+        try {
+            const res = await fetch(`${API_BASE}/redemptions/${id}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) {
+                showToast(`Status updated to ${status}`, 'success');
+                fetchData();
+            }
+        } catch {
+            showToast('Error updating status', 'error');
+        }
+    };
+
     const renderAnalytics = () => {
         if (!stats) return null;
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Students', value: stats.users, icon: <Users className="text-blue-500" size={18} />, bg: 'bg-blue-50' },
-                        { label: 'Questions Answered', value: stats.totalQuestions, icon: <BookOpen className="text-purple-500" size={18} />, bg: 'bg-purple-50' },
-                        { label: 'Avg. Accuracy', value: `${stats.averageAccuracy}%`, icon: <Target className="text-green-500" size={18} />, bg: 'bg-green-50' }
+                        { label: 'Total Students', value: stats.users, icon: <Users size={20} />, color: 'bg-blue-500' },
+                        { label: 'Questions', value: stats.totalQuestions, icon: <BookOpen size={20} />, color: 'bg-purple-500' },
+                        { label: 'Avg. Accuracy', value: `${stats.averageAccuracy}%`, icon: <Target size={20} />, color: 'bg-green-500' },
+                        { label: 'Coins in Econ', value: stats.totalCoins, icon: <ShoppingBag size={20} />, color: 'bg-orange-500' }
                     ].map((s, i) => (
-                        <div key={i} className={`${s.bg} rounded-2xl p-6 border border-white/50 shadow-sm transition-all hover:shadow-md`}>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-wider">{s.label}</span>
-                                {s.icon}
+                        <div key={i} className="bg-white rounded-2xl p-6 border border-brand-dark/5 shadow-sm">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={`${s.color} p-2 rounded-xl text-white shadow-lg shadow-${s.color.split('-')[1]}-200`}>
+                                    {s.icon}
+                                </div>
+                                <span className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-widest">{s.label}</span>
                             </div>
                             <div className="text-3xl font-display font-bold text-brand-dark">{s.value.toLocaleString()}</div>
                         </div>
                     ))}
                 </div>
 
-                <div className="bg-white/80 rounded-3xl p-8 border border-white/50 shadow-sm">
-                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2 text-brand-dark">
-                        <TrendingUp size={24} className="text-brand-orange" />
-                        Platform Growth
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-3xl p-8 border border-brand-dark/5 shadow-sm">
+                        <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2">
+                            <TrendingUp size={24} className="text-brand-orange" />
+                            Engagement Metrics
+                        </h3>
                         <div className="space-y-4">
-                            <p className="text-sm font-bold text-brand-dark/60">Community Engagement</p>
-                            <div className="flex items-center justify-between p-4 bg-brand-dark/5 rounded-2xl">
-                                <span className="text-sm font-medium">Total XP Distributed</span>
-                                <span className="font-bold text-brand-dark">⭐ {stats.totalXP.toLocaleString()}</span>
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                <span className="text-sm font-bold text-brand-dark/60">Total XP Distributed</span>
+                                <span className="font-bold text-brand-dark text-lg">⭐ {stats.totalXP.toLocaleString()}</span>
                             </div>
-                            <div className="flex items-center justify-between p-4 bg-brand-dark/5 rounded-2xl">
-                                <span className="text-sm font-medium">Global Correct Answers</span>
-                                <span className="font-bold text-brand-green">✅ {stats.totalCorrect.toLocaleString()}</span>
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                <span className="text-sm font-bold text-brand-dark/60">Global Correct Answers</span>
+                                <span className="font-bold text-brand-green text-lg">✅ {stats.totalCorrect.toLocaleString()}</span>
                             </div>
                         </div>
-                        <div className="flex flex-col justify-center items-center p-8 bg-brand-orange/5 rounded-3xl border border-brand-orange/10">
-                            <Target size={48} className="text-brand-orange mb-4 opacity-20" />
-                            <p className="text-sm font-bold text-brand-dark/60 mb-1 text-center">Platform Accuracy</p>
-                            <span className="text-5xl font-display font-bold text-brand-orange">{stats.averageAccuracy}%</span>
+                    </div>
+
+                    <div className="bg-brand-dark rounded-3xl p-8 text-white relative overflow-hidden group shadow-xl">
+                        <div className="relative z-10">
+                            <h3 className="font-display font-bold text-2xl mb-2 italic">Student Retention</h3>
+                            <p className="text-white/60 text-sm mb-6">Active community participation</p>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-5xl font-display font-bold text-brand-orange">{stats.averageAccuracy}%</span>
+                                <span className="text-white/40 font-bold uppercase text-[10px] tracking-widest">Global Success Rate</span>
+                            </div>
+                        </div>
+                        <div className="absolute -right-10 -bottom-10 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
+                            <LayoutDashboard size={200} />
                         </div>
                     </div>
                 </div>
@@ -147,76 +265,214 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         );
     };
 
+    const renderUsers = () => (
+        <div className="grid grid-cols-1 gap-3">
+            {users.map(u => (
+                <div key={u.id} onClick={() => handleSelectUser(u)} className="bg-white rounded-2xl p-5 flex items-center gap-6 border border-brand-dark/5 hover:border-brand-blue/30 hover:shadow-lg transition-all cursor-pointer group">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-dark/5 flex items-center justify-center text-brand-dark font-display font-bold text-lg shrink-0 group-hover:bg-brand-blue group-hover:text-white transition-colors">
+                        {u.name[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <p className="font-bold text-brand-dark">{u.name}</p>
+                            {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
+                        </div>
+                        <p className="text-[10px] text-brand-dark/40 font-medium truncate uppercase tracking-tighter">{u.email}</p>
+                        {u.subjectsDone && u.subjectsDone.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                                {u.subjectsDone.slice(0, 3).map((s, i) => (
+                                    <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-bold border border-blue-100 uppercase">
+                                        {s}
+                                    </span>
+                                ))}
+                                {u.subjectsDone.length > 3 && <span className="text-[8px] text-brand-dark/30 font-bold">+{u.subjectsDone.length - 3}</span>}
+                            </div>
+                        )}
+                    </div>
+                    <div className="hidden md:flex items-center gap-8 text-center">
+                        <div>
+                            <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Questions</p>
+                            <p className="font-bold text-sm tracking-tighter">{u.totalQuestions}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Accuracy</p>
+                            <p className={`font-bold text-sm ${u.accuracy > 80 ? 'text-green-500' : u.accuracy > 50 ? 'text-brand-orange' : 'text-red-500'}`}>
+                                {u.accuracy}%
+                            </p>
+                        </div>
+                    </div>
+                    <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderRewards = () => (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-brand-dark/5 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <Gift className="text-brand-orange" size={24} />
+                    <div>
+                        <h3 className="font-bold text-sm">Reward Catalog</h3>
+                        <p className="text-xs text-brand-dark/40">Manage incentives for students</p>
+                    </div>
+                </div>
+                <button onClick={() => { setEditingReward(null); setShowRewardModal(true); }} className="bg-brand-dark text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-dark/90 flex items-center gap-2 shadow-lg active:scale-95 transition-all">
+                    <Plus size={16} /> New Reward
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {rewards.map(r => (
+                    <div key={r.id} className="bg-white p-6 rounded-3xl border border-brand-dark/5 shadow-sm relative group">
+                        <div className="flex justify-between mb-4">
+                            <span className="text-4xl">{r.icon || '🎁'}</span>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setEditingReward(r); setShowRewardModal(true); }} className="p-2 hover:bg-brand-dark/5 rounded-lg text-brand-dark/40 hover:text-brand-dark"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDeleteReward(r.id)} className="p-2 hover:bg-red-50 rounded-lg text-brand-dark/40 hover:text-red-500"><Trash2 size={16} /></button>
+                            </div>
+                        </div>
+                        <h4 className="font-bold text-lg mb-1">{r.title}</h4>
+                        <p className="text-sm text-brand-dark/60 mb-4 line-clamp-2">{r.description || 'No description provided.'}</p>
+                        <div className="flex items-center justify-between pt-4 border-t border-brand-dark/5">
+                            <div className="flex items-center gap-1.5 font-bold text-brand-orange">
+                                <ShoppingBag size={14} />
+                                <span>{r.coinCost} Coins</span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${r.isActive ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
+                                {r.isActive ? (r.stock !== null ? `${r.stock} in stock` : 'Active') : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderRedemptions = () => (
+        <div className="bg-white rounded-3xl border border-brand-dark/5 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-brand-dark/5 flex justify-between items-center">
+                <h3 className="font-bold flex items-center gap-2 italic">
+                    <Clock size={20} className="text-brand-orange" />
+                    Student Redemptions
+                </h3>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead>
+                        <tr className="text-left bg-gray-50/50">
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Student</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Reward</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Redeemed At</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Status</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-dark/5">
+                        {redemptions.map(rd => (
+                            <tr key={rd.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4">
+                                    <p className="font-bold text-sm">{rd.user.name}</p>
+                                    <p className="text-[10px] text-brand-dark/40">{rd.user.email}</p>
+                                </td>
+                                <td className="px-6 py-4 font-bold text-sm text-brand-orange italic">{rd.reward.title}</td>
+                                <td className="px-6 py-4 text-[10px] font-medium text-brand-dark/40">{new Date(rd.redeemedAt).toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-tighter ${rd.status === 'fulfilled' ? 'bg-green-50 text-green-600' :
+                                            rd.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                                        }`}>
+                                        {rd.status}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex gap-2">
+                                        {rd.status === 'pending' && (
+                                            <>
+                                                <button onClick={() => handleUpdateRedemption(rd.id, 'fulfilled')} className="p-2 hover:bg-green-50 rounded-lg text-green-600 transition-colors" title="Mark as Fulfilled"><CheckCircle size={16} /></button>
+                                                <button onClick={() => handleUpdateRedemption(rd.id, 'cancelled')} className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors" title="Cancel Redemption"><XCircle size={16} /></button>
+                                            </>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {redemptions.length === 0 && <p className="text-center py-20 text-brand-dark/30 font-bold italic">No redemptions found</p>}
+            </div>
+        </div>
+    );
+
     const renderUserPerformance = () => {
         if (!selectedUser) return null;
         return (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                <button onClick={handleBackToUsers} className="flex items-center gap-2 text-sm font-bold text-brand-dark/50 hover:text-brand-dark transition-colors mb-4">
+                <button onClick={handleBackToUsers} className="flex items-center gap-2 text-sm font-bold text-brand-dark/40 hover:text-brand-dark transition-colors mb-4">
                     <ArrowLeft size={16} /> Back to User List
                 </button>
 
-                <div className="bg-white/80 rounded-3xl p-6 border border-white/50 shadow-sm">
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-3xl shadow-lg">
+                <div className="bg-white rounded-3xl p-8 border border-brand-dark/5 shadow-sm">
+                    <div className="flex items-center gap-6 mb-8">
+                        <div className="w-20 h-20 rounded-2xl bg-brand-dark text-white flex items-center justify-center font-display font-bold text-4xl shadow-2xl">
                             {selectedUser.name[0].toUpperCase()}
                         </div>
                         <div>
-                            <h2 className="text-2xl font-display font-bold">{selectedUser.name}</h2>
-                            <p className="text-brand-dark/40 font-medium">{selectedUser.email}</p>
+                            <div className="flex items-center gap-3">
+                                <h2 className="text-3xl font-display font-bold">{selectedUser.name}</h2>
+                                {selectedUser.isSubscribed && <span className="bg-brand-orange/10 text-brand-orange text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Pro Member</span>}
+                            </div>
+                            <p className="text-brand-dark/40 font-bold uppercase tracking-tighter mt-1">{selectedUser.email}</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: 'Total XP', value: selectedUser.xp, icon: '⭐' },
-                            { label: 'Questions', value: selectedUser.totalQuestions, icon: '📚' },
+                            { label: 'Academic XP', value: selectedUser.xp, icon: '⭐' },
+                            { label: 'Q. Answered', value: selectedUser.totalQuestions, icon: '📚' },
                             { label: 'Correct', value: selectedUser.totalCorrect, icon: '✅' },
-                            { label: 'Accuracy', value: `${selectedUser.accuracy}%`, icon: '🎯' }
+                            { label: 'Avg Accuracy', value: `${selectedUser.accuracy}%`, icon: '🎯' }
                         ].map((s, i) => (
-                            <div key={i} className="p-4 bg-brand-dark/5 rounded-2xl">
-                                <p className="text-[10px] font-bold text-brand-dark/40 uppercase mb-1">{s.label}</p>
-                                <div className="text-lg font-bold">{s.icon} {s.value}</div>
+                            <div key={i} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 transition-all hover:border-brand-dark/10">
+                                <p className="text-[10px] font-bold text-brand-dark/40 uppercase mb-2 tracking-widest">{s.label}</p>
+                                <div className="text-2xl font-display font-bold">{s.icon} {s.value.toLocaleString()}</div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="bg-white/80 rounded-3xl p-8 border border-white/50 shadow-sm">
-                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2">
+                <div className="bg-white rounded-3xl p-8 border border-brand-dark/5 shadow-sm">
+                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2 italic">
                         <Calendar size={20} className="text-brand-orange" />
-                        Daily Performance History
+                        Performance Progress
                     </h3>
 
                     {loadingPerformance ? (
-                        <div className="text-center py-12 text-brand-dark/40 font-bold">Fetching history...</div>
+                        <div className="text-center py-12 text-brand-dark/20 font-bold">Aggregating history...</div>
                     ) : userPerformance.length === 0 ? (
-                        <p className="text-center py-12 text-brand-dark/30 font-bold italic">No performance data recorded yet</p>
+                        <p className="text-center py-12 text-brand-dark/20 font-bold italic">This user hasn't completed any sessions yet</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                     <tr className="text-left border-b border-brand-dark/5">
-                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Date</th>
-                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Answered</th>
-                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Correct</th>
-                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Accuracy</th>
+                                        <th className="pb-4 text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Date</th>
+                                        <th className="pb-4 text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Volume</th>
+                                        <th className="pb-4 text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Precision</th>
+                                        <th className="pb-4 text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Success Rate</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-brand-dark/5">
                                     {userPerformance.map((p, i) => (
-                                        <tr key={i} className="hover:bg-brand-dark/5 transition-colors">
+                                        <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                                             <td className="py-4 font-bold text-sm">{new Date(p.date).toLocaleDateString()}</td>
-                                            <td className="py-4 text-sm">{p.answered}</td>
-                                            <td className="py-4 text-sm font-bold text-brand-green">{p.correct}</td>
+                                            <td className="py-4 text-sm font-medium">{p.answered} Qs</td>
+                                            <td className="py-4 text-sm font-bold text-brand-green">{p.correct} Correct</td>
                                             <td className="py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex-1 bg-brand-dark/5 h-2 rounded-full overflow-hidden min-w-[60px]">
-                                                        <div
-                                                            className={`h-full rounded-full ${p.accuracy > 80 ? 'bg-green-500' : p.accuracy > 50 ? 'bg-brand-orange' : 'bg-red-500'}`}
-                                                            style={{ width: `${p.accuracy}%` }}
-                                                        />
+                                                    <div className="flex-1 bg-gray-100 h-2.5 rounded-full overflow-hidden min-w-[100px]">
+                                                        <div className={`h-full rounded-full transition-all duration-1000 ${p.accuracy > 80 ? 'bg-green-500' : p.accuracy > 50 ? 'bg-orange-400' : 'bg-red-500'}`} style={{ width: `${p.accuracy}%` }} />
                                                     </div>
-                                                    <span className="text-xs font-bold w-10">{p.accuracy}%</span>
+                                                    <span className="text-xs font-black w-12">{p.accuracy}%</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -231,83 +487,124 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto pt-10 pb-16 px-4">
-            {toast && (
-                <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-6 py-3 rounded-2xl shadow-2xl font-bold text-white text-sm animate-pop-in
-          ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-                    {toast.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                    {toast.msg}
+        <div className="min-h-screen bg-gray-50/50 flex">
+            {/* Sidebar */}
+            <div className="w-64 bg-white border-r border-brand-dark/5 p-6 flex flex-col shrink-0">
+                <div className="flex items-center gap-2 mb-10 px-2">
+                    <div className="w-8 h-8 bg-brand-dark rounded-xl flex items-center justify-center">
+                        <LayoutDashboard className="text-white" size={18} />
+                    </div>
+                    <span className="font-display font-bold text-lg tracking-tight">Admin<span className="text-brand-orange">Pro</span></span>
                 </div>
-            )}
 
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-display font-bold">Admin Insights</h1>
-                    <p className="text-brand-dark/40 text-sm mt-1">Student performance and engagement monitoring</p>
+                <nav className="flex-1 space-y-1">
+                    {[
+                        { id: 'analytics', label: 'Analytics', icon: <TrendingUp size={18} /> },
+                        { id: 'users', label: 'Students', icon: <Users size={18} /> },
+                        { id: 'rewards', label: 'Rewards', icon: <Gift size={18} /> },
+                        { id: 'redemptions', label: 'Orders', icon: <ShoppingBag size={18} /> }
+                    ].map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => { setTab(item.id as any); setSelectedUser(null); }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all
+                                ${tab === item.id && !selectedUser ? 'bg-brand-dark text-white shadow-lg' : 'text-brand-dark/40 hover:bg-brand-dark/5 hover:text-brand-dark'}`}
+                        >
+                            {item.icon}
+                            {item.label}
+                        </button>
+                    ))}
+                </nav>
+
+                <div className="mt-auto p-4 bg-brand-orange/5 rounded-2xl border border-brand-orange/10">
+                    <p className="text-[10px] font-black text-brand-orange uppercase tracking-widest mb-1">System Health</p>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs font-bold text-brand-dark/60">API Connected</span>
+                    </div>
                 </div>
             </div>
 
-            {!selectedUser && (
-                <div className="flex gap-2 bg-white/50 p-1 rounded-2xl mb-6 w-fit">
-                    {([['analytics', '📊 Overview'], ['users', '👥 Students']] as const).map(([key, label]) => (
-                        <button key={key} onClick={() => setTab(key)}
-                            className={`px-5 py-2 rounded-xl font-bold text-sm transition-all
-                  ${tab === key ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark'}`}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {loading ? (
-                <div className="text-center py-20 text-brand-dark/40 font-bold">Analyzing data...</div>
-            ) : selectedUser ? (
-                renderUserPerformance()
-            ) : tab === 'analytics' ? (
-                renderAnalytics()
-            ) : (
-                <div className="grid grid-cols-1 gap-3">
-                    {users.map(u => (
-                        <div
-                            key={u.id}
-                            onClick={() => handleSelectUser(u)}
-                            className="bg-white/80 rounded-2xl p-5 flex items-center gap-6 border border-white/50 hover:border-brand-blue/30 hover:shadow-md transition-all cursor-pointer group"
-                        >
-                            <div className="w-12 h-12 rounded-2xl bg-brand-dark/5 flex items-center justify-center text-brand-dark font-display font-bold text-lg shrink-0 group-hover:bg-brand-blue group-hover:text-white transition-colors">
-                                {u.name[0].toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <p className="font-bold text-brand-dark">{u.name}</p>
-                                    {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
-                                </div>
-                                <p className="text-[10px] text-brand-dark/40 font-medium truncate uppercase tracking-tighter">{u.email}</p>
-                                {u.subjectsDone && u.subjectsDone.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {u.subjectsDone.slice(0, 3).map((s, i) => (
-                                            <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-bold border border-blue-100 uppercase">
-                                                {s}
-                                            </span>
-                                        ))}
-                                        {u.subjectsDone.length > 3 && <span className="text-[8px] text-brand-dark/30 font-bold">+{u.subjectsDone.length - 3}</span>}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="hidden md:flex items-center gap-8 text-center">
-                                <div>
-                                    <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Questions</p>
-                                    <p className="font-bold text-sm">{u.totalQuestions}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Accuracy</p>
-                                    <p className={`font-bold text-sm ${u.accuracy > 80 ? 'text-green-500' : u.accuracy > 50 ? 'text-brand-orange' : 'text-red-500'}`}>
-                                        {u.accuracy}%
-                                    </p>
-                                </div>
-                            </div>
-                            <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
+            {/* Main Content */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-6xl mx-auto pt-10 pb-16 px-8">
+                    {toast && (
+                        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-6 py-3 rounded-2xl shadow-2xl font-bold text-white text-sm animate-pop-in
+                        ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+                            {toast.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                            {toast.msg}
                         </div>
-                    ))}
+                    )}
+
+                    <header className="flex items-center justify-between mb-10">
+                        <div>
+                            <h1 className="text-3xl font-display font-bold tracking-tight">
+                                {selectedUser ? 'Student Performance' :
+                                    tab === 'analytics' ? 'Dashboard Overview' :
+                                        tab === 'users' ? 'Student Management' :
+                                            tab === 'rewards' ? 'Rewards Catalog' : 'Fulfillment Center'}
+                            </h1>
+                            <p className="text-brand-dark/40 text-sm mt-1 font-medium italic">
+                                {selectedUser ? `Analyzing growth for ${selectedUser.name}` : 'Real-time platform monitoring'}
+                            </p>
+                        </div>
+                    </header>
+
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-40 opacity-20 animate-pulse">
+                            <LayoutDashboard size={48} className="animate-spin-slow mb-4" />
+                            <span className="font-bold uppercase tracking-widest text-[10px]">Syncing Data</span>
+                        </div>
+                    ) : selectedUser ? (
+                        renderUserPerformance()
+                    ) : (
+                        <>
+                            {tab === 'analytics' && renderAnalytics()}
+                            {tab === 'users' && renderUsers()}
+                            {tab === 'rewards' && renderRewards()}
+                            {tab === 'redemptions' && renderRedemptions()}
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Reward Modal */}
+            {showRewardModal && (
+                <div className="fixed inset-0 z-[400] overflow-y-auto">
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div className="absolute inset-0 bg-brand-dark/60 backdrop-blur-sm" onClick={() => setShowRewardModal(false)} />
+                        <div className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-xl p-10 transform transition-all animate-pop-in border border-brand-dark/10">
+                            <h2 className="text-3xl font-display font-bold mb-8 italic">{editingReward ? 'Refine' : 'Add'} Reward</h2>
+                            <form onSubmit={handleSaveReward} className="space-y-6">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Icon/Emoji</label>
+                                        <input name="icon" defaultValue={editingReward?.icon || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-bold text-2xl focus:ring-2 ring-brand-orange/20" placeholder="🎁" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Coin Cost</label>
+                                        <input required type="number" name="coinCost" defaultValue={editingReward?.coinCost || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-bold focus:ring-2 ring-brand-orange/20" placeholder="500" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Reward Title</label>
+                                    <input required name="title" defaultValue={editingReward?.title || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-bold focus:ring-2 ring-brand-orange/20" placeholder="Sticker Pack" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Description</label>
+                                    <textarea name="description" defaultValue={editingReward?.description || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-medium focus:ring-2 ring-brand-orange/20" rows={3} placeholder="Tell them what they're winning..." />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Initial Stock (Optional)</label>
+                                    <input type="number" name="stock" defaultValue={editingReward?.stock || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-bold focus:ring-2 ring-brand-orange/20" placeholder="100 (Leave blank for ∞)" />
+                                </div>
+                                <div className="flex gap-4 pt-4">
+                                    <button type="button" onClick={() => setShowRewardModal(false)} className="flex-1 bg-gray-50 text-brand-dark/40 py-5 rounded-2xl font-bold hover:bg-gray-100 active:scale-95 transition-all">Cancel</button>
+                                    <button type="submit" className="flex-[2] bg-brand-dark text-white py-5 rounded-3xl font-bold text-lg hover:bg-brand-dark/90 shadow-xl active:scale-95 transition-all">Save Catalog Item</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

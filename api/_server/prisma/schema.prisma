@@ -63,6 +63,32 @@ model User {
   questsCreated         Int       @default(0)
   quests                Quest[]
   results               Result[]
+  redemptions           Redemption[]
+}
+
+model Reward {
+  id          String       @id @default(uuid())
+  title       String
+  description String?      @db.Text
+  coinCost    Int
+  icon        String?      // Lucide icon name or emoji
+  stock       Int?         // Null means unlimited
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id         String   @id @default(uuid())
+  userId     String
+  rewardId   String
+  status     String   @default("pending") // pending, fulfilled, cancelled
+  redeemedAt DateTime @default(now())
+  reward     Reward   @relation(fields: [rewardId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([rewardId])
 }
 
 model PendingUser {
