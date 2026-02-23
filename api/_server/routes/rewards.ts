@@ -22,6 +22,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.post('/redeem/:rewardId', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const { rewardId } = req.params;
+    const { receiverName, receiverPhone, receiverAddress } = req.body;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -45,7 +46,13 @@ router.post('/redeem/:rewardId', authenticateToken, async (req: AuthRequest, res
         // Deduct coins, create redemption, decrement stock — all in a transaction
         const [redemption] = await prisma.$transaction([
             prisma.redemption.create({
-                data: { userId, rewardId }
+                data: {
+                    userId,
+                    rewardId,
+                    receiverName,
+                    receiverPhone,
+                    receiverAddress
+                }
             }),
             prisma.user.update({
                 where: { id: userId },

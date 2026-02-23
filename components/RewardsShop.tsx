@@ -34,6 +34,11 @@ const RewardsShop: React.FC<RewardsShopProps> = ({ userCoins, token, onCoinsUpda
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [redeeming, setRedeeming] = useState(false);
 
+    // Delivery Info Form State
+    const [receiverName, setReceiverName] = useState('');
+    const [receiverPhone, setReceiverPhone] = useState('');
+    const [receiverAddress, setReceiverAddress] = useState('');
+
     const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     const showToast = (msg: string, type: 'success' | 'error') => {
@@ -59,11 +64,23 @@ const RewardsShop: React.FC<RewardsShopProps> = ({ userCoins, token, onCoinsUpda
 
     const handleRedeem = async () => {
         if (!confirmReward) return;
+
+        // Basic Validation
+        if (!receiverName.trim() || !receiverPhone.trim() || !receiverAddress.trim()) {
+            showToast('Please fill in all delivery details', 'error');
+            return;
+        }
+
         setRedeeming(true);
         try {
             const res = await fetch(`${API_BASE}/rewards/redeem/${confirmReward.id}`, {
                 method: 'POST',
-                headers: authHeaders
+                headers: authHeaders,
+                body: JSON.stringify({
+                    receiverName,
+                    receiverPhone,
+                    receiverAddress
+                })
             });
             const data = await res.json();
             if (!res.ok) {
@@ -85,12 +102,17 @@ const RewardsShop: React.FC<RewardsShopProps> = ({ userCoins, token, onCoinsUpda
                 };
                 setRedemptions(prev => [newRedemption, ...prev]);
                 showToast(`🎉 "${confirmReward.title}" redeemed! -${confirmReward.coinCost} coins`, 'success');
+
+                // Clear form
+                setReceiverName('');
+                setReceiverPhone('');
+                setReceiverAddress('');
+                setConfirmReward(null);
             }
         } catch {
             showToast('Network error. Please try again.', 'error');
         }
         setRedeeming(false);
-        setConfirmReward(null);
     };
 
     return (
@@ -218,6 +240,36 @@ const RewardsShop: React.FC<RewardsShopProps> = ({ userCoins, token, onCoinsUpda
                         <div className="text-7xl text-center mb-6">{confirmReward.icon}</div>
                         <h3 className="font-display font-bold text-3xl text-center mb-2 italic tracking-tight">{confirmReward.title}</h3>
                         <p className="text-brand-dark/40 text-sm text-center mb-8 font-medium leading-relaxed">{confirmReward.description}</p>
+
+                        <div className="flex flex-col gap-4 mb-8">
+                            <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Recipient Name</label>
+                                <input
+                                    value={receiverName}
+                                    onChange={e => setReceiverName(e.target.value)}
+                                    className="w-full bg-gray-50 border border-brand-dark/5 rounded-2xl px-6 py-4 font-bold focus:ring-2 ring-brand-orange/20 outline-none transition-all"
+                                    placeholder="Enter full name"
+                                />
+                            </div>
+                            <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Phone Number</label>
+                                <input
+                                    value={receiverPhone}
+                                    onChange={e => setReceiverPhone(e.target.value)}
+                                    className="w-full bg-gray-50 border border-brand-dark/5 rounded-2xl px-6 py-4 font-bold focus:ring-2 ring-brand-orange/20 outline-none transition-all"
+                                    placeholder="+60..."
+                                />
+                            </div>
+                            <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Delivery Address</label>
+                                <textarea
+                                    value={receiverAddress}
+                                    onChange={e => setReceiverAddress(e.target.value)}
+                                    className="w-full bg-gray-50 border border-brand-dark/5 rounded-2xl px-6 py-4 font-medium focus:ring-2 ring-brand-orange/20 outline-none transition-all h-24 resize-none"
+                                    placeholder="Enter full shipping address"
+                                />
+                            </div>
+                        </div>
 
                         <div className="bg-brand-orange/5 rounded-3xl p-6 text-center mb-8 border border-brand-orange/10">
                             <p className="text-brand-orange font-black text-2xl flex items-center justify-center gap-2">

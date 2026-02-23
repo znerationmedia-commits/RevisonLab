@@ -63,6 +63,9 @@ interface Redemption {
     redeemedAt: string;
     user: { name: string; email: string };
     reward: { title: string };
+    receiverName?: string;
+    receiverPhone?: string;
+    receiverAddress?: string;
 }
 
 interface PerformanceMetric {
@@ -363,6 +366,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                         <tr className="text-left bg-gray-50/50">
                             <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Student</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Reward</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Delivery Info</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Redeemed At</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Status</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest">Action</th>
@@ -376,10 +380,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                                     <p className="text-[10px] text-brand-dark/40">{rd.user.email}</p>
                                 </td>
                                 <td className="px-6 py-4 font-bold text-sm text-brand-orange italic">{rd.reward.title}</td>
+                                <td className="px-6 py-4">
+                                    <div className="text-xs space-y-0.5">
+                                        <p className="font-bold text-brand-dark">{rd.receiverName || 'N/A'}</p>
+                                        <p className="font-medium text-brand-dark/60">{rd.receiverPhone || 'N/A'}</p>
+                                        <p className="text-[10px] text-brand-dark/40 line-clamp-1 italic max-w-[150px]" title={rd.receiverAddress || ''}>
+                                            {rd.receiverAddress || 'No address'}
+                                        </p>
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4 text-[10px] font-medium text-brand-dark/40">{new Date(rd.redeemedAt).toLocaleString()}</td>
                                 <td className="px-6 py-4">
                                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-tighter ${rd.status === 'fulfilled' ? 'bg-green-50 text-green-600' :
-                                            rd.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                                        rd.status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
                                         }`}>
                                         {rd.status}
                                     </span>
