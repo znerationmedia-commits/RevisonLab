@@ -140,6 +140,8 @@ export default function App() {
   const [paymentInterval, setPaymentInterval] = useState<'month' | 'year'>('month');
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<{ prevLevel: number; newLevel: number; xpGained: number } | null>(null);
   const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
   const [showPromo, setShowPromo] = useState(true);
   const [selectedPlanLevel, setSelectedPlanLevel] = useState<'single' | 'all'>('single');
@@ -725,7 +727,14 @@ export default function App() {
     const coinsGained = Math.floor(score / 10);
     const newXp = stats.xp + xpGained;
     const newLevel = Math.floor(newXp / 1000) + 1;
+    const oldLevel = stats.level;
     const newQuizzes = stats.completedQuizzes + 1;
+
+    // Detect level up
+    if (newLevel > oldLevel) {
+      setLevelUpData({ prevLevel: oldLevel, newLevel, xpGained });
+      setShowLevelUp(true);
+    }
 
     setStats(prev => ({
       ...prev,
@@ -769,8 +778,56 @@ export default function App() {
     }
   };
 
+  // EXP progress within current level (each level = 1000 XP)
+  const xpForCurrentLevel = (stats.level - 1) * 1000;
+  const xpForNextLevel = stats.level * 1000;
+  const xpIntoLevel = stats.xp - xpForCurrentLevel;
+  const xpToNextLevel = xpForNextLevel - xpForCurrentLevel; // always 1000
+  const expPercent = Math.min(100, Math.round((xpIntoLevel / xpToNextLevel) * 100));
 
+  // Level title
+  const getLevelTitle = (level: number) => {
+    if (level < 3) return 'Rookie Scholar';
+    if (level < 6) return 'Rising Star';
+    if (level < 10) return 'Knowledge Seeker';
+    if (level < 15) return 'Quest Master';
+    if (level < 20) return 'Legendary Mind';
+    return 'Grand Champion';
+  };
 
+  // Level-up overlay
+  const LevelUpOverlay = () => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowLevelUp(false)}>
+      <div className="relative text-center animate-pop-in" onClick={e => e.stopPropagation()}>
+        {/* Burst rings */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-64 h-64 rounded-full border-4 border-yellow-400/40 animate-ping" />
+        </div>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-48 h-48 rounded-full border-4 border-yellow-300/60 animate-ping" style={{ animationDelay: '0.2s' }} />
+        </div>
+
+        <div className="bg-gradient-to-br from-yellow-400 via-orange-400 to-red-400 rounded-3xl p-10 shadow-2xl shadow-orange-500/40 mx-4 max-w-sm relative overflow-hidden">
+          {/* Shine sweep */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-[shimmer_1.5s_ease-in-out_infinite]" />
+
+          <div className="text-7xl mb-4 relative">⚡</div>
+          <p className="text-white/80 font-bold text-sm uppercase tracking-widest mb-1">Level Up!</p>
+          <div className="text-white font-display font-bold text-7xl leading-none mb-2">
+            {levelUpData?.newLevel}
+          </div>
+          <p className="text-white/90 font-bold text-lg mb-1">{getLevelTitle(levelUpData?.newLevel ?? 1)}</p>
+          <p className="text-white/70 text-sm mb-6">+{levelUpData?.xpGained} XP earned</p>
+          <button
+            onClick={() => setShowLevelUp(false)}
+            className="bg-white/20 hover:bg-white/30 text-white font-bold px-8 py-3 rounded-full transition-all border border-white/30"
+          >
+            Awesome! 🎉
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const LimitReachedModal = () => (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -1061,7 +1118,44 @@ export default function App() {
         <p className="text-brand-dark/60">Great job, {user?.name}!</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* EXP Bar Section */}
+      <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border border-white/50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-2xl shadow-lg shadow-brand-blue/30">
+              {stats.level}
+            </div>
+            <div>
+              <p className="font-display font-bold text-xl text-brand-dark leading-tight">Level {stats.level}</p>
+              <p className="text-sm font-bold text-brand-dark/40">{getLevelTitle(stats.level)}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-brand-dark/40 uppercase tracking-wide">Next Level</p>
+            <p className="font-bold text-brand-dark">
+              <span className="text-brand-blue">{xpIntoLevel}</span>
+              <span className="text-brand-dark/30"> / {xpToNextLevel} XP</span>
+            </p>
+          </div>
+        </div>
+
+        {/* EXP Bar */}
+        <div className="relative w-full bg-brand-dark/5 rounded-full h-5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-brand-blue via-indigo-500 to-purple-500 transition-all duration-1000 ease-out relative overflow-hidden"
+            style={{ width: `${expPercent}%` }}
+          >
+            {/* Shimmer on bar */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-[shimmer_2s_ease-in-out_infinite]" />
+          </div>
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-brand-dark/40">{expPercent}%</span>
+        </div>
+        <p className="text-xs text-brand-dark/40 font-bold mt-2 text-right">
+          {xpToNextLevel - xpIntoLevel} XP to Level {stats.level + 1}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
           <div className="p-3 bg-blue-100 rounded-full text-brand-blue mb-2"><Star /></div>
           <div className="text-4xl font-bold text-brand-blue mb-1">{stats.xp}</div>
@@ -1070,7 +1164,7 @@ export default function App() {
         <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
           <div className="p-3 bg-green-100 rounded-full text-brand-green mb-2"><Zap /></div>
           <div className="text-4xl font-bold text-brand-green mb-1">{stats.level}</div>
-          <div className="text-sm font-bold uppercase text-brand-dark/50">Current Level</div>
+          <div className="text-sm font-bold uppercase text-brand-dark/50">Level</div>
         </Card>
         <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
           <div className="p-3 bg-orange-100 rounded-full text-brand-orange mb-2"><Trophy /></div>
@@ -1105,8 +1199,11 @@ export default function App() {
     </div>
   );
 
+
   return (
     <div className="min-h-screen relative overflow-x-hidden selection:bg-brand-orange selection:text-white flex flex-col">
+      {/* Level Up Overlay */}
+      {showLevelUp && levelUpData && <LevelUpOverlay />}
       {/* Background Decorative Blobs */}
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-orange/20 rounded-full blur-3xl -z-10 animate-float" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-brand-blue/10 rounded-full blur-3xl -z-10" />
