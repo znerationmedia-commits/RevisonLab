@@ -22,92 +22,18 @@ const requireAdmin = async (req: AuthRequest, res: express.Response, next: expre
 
 router.use(authenticateToken, requireAdmin);
 
-// GET /api/admin/rewards — all rewards (including inactive)
-router.get('/rewards', async (_req, res) => {
-    try {
-        const rewards = await prisma.reward.findMany({ orderBy: { createdAt: 'desc' } });
-        res.json(rewards);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch rewards' });
-    }
-});
-
-// POST /api/admin/rewards — create a reward
-router.post('/rewards', async (req, res) => {
-    const { name, description, emoji, coinCost, stock } = req.body;
-
-    if (!name || !description || !coinCost) {
-        return res.status(400).json({ error: 'name, description, and coinCost are required' });
-    }
-
-    try {
-        const reward = await prisma.reward.create({
-            data: {
-                name,
-                description,
-                emoji: emoji || '🎁',
-                coinCost: parseInt(coinCost),
-                stock: stock !== undefined && stock !== '' ? parseInt(stock) : null,
-                isActive: true
-            }
-        });
-        res.json(reward);
-    } catch (error) {
-        console.error('[ADMIN] Create reward error:', error);
-        res.status(500).json({ error: 'Failed to create reward' });
-    }
-});
-
-// PUT /api/admin/rewards/:id — update a reward
-router.put('/rewards/:id', async (req, res) => {
-    const { id } = req.params;
-    const { name, description, emoji, coinCost, stock, isActive } = req.body;
-
-    try {
-        const reward = await prisma.reward.update({
-            where: { id },
-            data: {
-                ...(name !== undefined && { name }),
-                ...(description !== undefined && { description }),
-                ...(emoji !== undefined && { emoji }),
-                ...(coinCost !== undefined && { coinCost: parseInt(coinCost) }),
-                ...(stock !== undefined && { stock: stock === '' || stock === null ? null : parseInt(stock) }),
-                ...(isActive !== undefined && { isActive })
-            }
-        });
-        res.json(reward);
-    } catch (error) {
-        console.error('[ADMIN] Update reward error:', error);
-        res.status(500).json({ error: 'Failed to update reward' });
-    }
-});
-
-// DELETE /api/admin/rewards/:id — delete a reward
-router.delete('/rewards/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        // Delete associated redemptions first to avoid FK constraint
-        await prisma.redemption.deleteMany({ where: { rewardId: id } });
-        await prisma.reward.delete({ where: { id } });
-        res.json({ success: true });
-    } catch (error) {
-        console.error('[ADMIN] Delete reward error:', error);
-        res.status(500).json({ error: 'Failed to delete reward' });
-    }
-});
-
 // GET /api/admin/stats — aggregate analytics
 router.get('/stats', async (_req, res) => {
     try {
-        const [userCount, totalCoins, totalXP, redemptionCount, mostRedeemed] = await Promise.all([
+        const [userCount, totalCoins, totalXP, performance] = await Promise.all([
             prisma.user.count(),
             prisma.user.aggregate({ _sum: { coins: true } }),
             prisma.user.aggregate({ _sum: { xp: true } }),
-            prisma.redemption.count(),
-            prisma.reward.findMany({
-                include: { _count: { select: { redemptions: true } } },
-                orderBy: { redemptions: { _count: 'desc' } },
-                take: 5
+            prisma.result.aggregate({
+                _sum: {
+                    totalQuestions: true,
+                    correctAnswers: true
+                }
             })
         ]);
 
@@ -115,12 +41,10 @@ router.get('/stats', async (_req, res) => {
             users: userCount,
             totalCoins: totalCoins._sum.coins || 0,
             totalXP: totalXP._sum.xp || 0,
-            redemptions: redemptionCount,
-            popularRewards: mostRedeemed.map(r => ({
-                name: r.name,
-                count: r._count.redemptions,
-                emoji: r.emoji
-            }))
+            totalQuestions: performance._sum.totalQuestions || 0,
+            totalCorrect: performance._sum.correctAnswers || 0,
+            averageAccuracy: performance._sum.totalQuestions ?
+                Math.round((performance._sum.correctAnswers || 0) / performance._sum.totalQuestions * 100) : 0
         });
     } catch (error) {
         console.error('[ADMIN] Stats error:', error);
@@ -128,7 +52,7 @@ router.get('/stats', async (_req, res) => {
     }
 });
 
-// GET /api/admin/users — list all users (basic info)
+// GET /api/admin/users — list all users (with aggregate stats)
 router.get('/users', async (_req, res) => {
     try {
         const users = await prisma.user.findMany({
@@ -138,17 +62,75 @@ router.get('/users', async (_req, res) => {
                 email: true,
                 role: true,
                 xp: true,
-                coins: true,
                 isAdmin: true,
                 isSubscribed: true,
                 questsPlayed: true,
-                _count: { select: { redemptions: true } }
+                results: {
+                    select: {
+                        totalQuestions: true,
+                        correctAnswers: true
+                    }
+                }
             },
             orderBy: { xp: 'desc' }
         });
-        res.json(users);
+
+        // Add calculated stats
+        const usersWithStats = users.map(u => {
+            const totalQ = u.results.reduce((sum, r) => sum + r.totalQuestions, 0);
+            const totalC = u.results.reduce((sum, r) => sum + r.correctAnswers, 0);
+            return {
+                ...u,
+                totalQuestions: totalQ,
+                totalCorrect: totalC,
+                accuracy: totalQ ? Math.round((totalC / totalQ) * 100) : 0,
+                results: undefined // Clear raw results
+            };
+        });
+
+        res.json(usersWithStats);
     } catch (error) {
+        console.error('[ADMIN] Users error:', error);
         res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+// GET /api/admin/users/:userId/performance — Daily stats for a user
+router.get('/users/:userId/performance', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const results = await prisma.result.findMany({
+            where: { userId },
+            orderBy: { date: 'asc' },
+            select: {
+                date: true,
+                totalQuestions: true,
+                correctAnswers: true
+            }
+        });
+
+        // Group by day (YYYY-MM-DD)
+        const dailyStats: Record<string, { answered: number, correct: number }> = {};
+
+        results.forEach(r => {
+            const day = r.date.toISOString().split('T')[0];
+            if (!dailyStats[day]) {
+                dailyStats[day] = { answered: 0, correct: 0 };
+            }
+            dailyStats[day].answered += r.totalQuestions;
+            dailyStats[day].correct += r.correctAnswers;
+        });
+
+        const formattedStats = Object.entries(dailyStats).map(([date, stats]) => ({
+            date,
+            ...stats,
+            accuracy: stats.answered ? Math.round((stats.correct / stats.answered) * 100) : 0
+        })).sort((a, b) => b.date.localeCompare(a.date));
+
+        res.json(formattedStats);
+    } catch (error) {
+        console.error('[ADMIN] Performance error:', error);
+        res.status(500).json({ error: 'Failed to fetch performance data' });
     }
 });
 

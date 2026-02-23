@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, Package, Users, BarChart2, TrendingUp, DollarSign, Award } from 'lucide-react';
-
-interface Reward {
-    id: string;
-    name: string;
-    description: string;
-    emoji: string;
-    coinCost: number;
-    stock: number | null;
-    isActive: boolean;
-    createdAt: string;
-}
+import { Users, BarChart2, TrendingUp, Award, Calendar, CheckCircle, XCircle, ChevronRight, ArrowLeft, Target, BookOpen } from 'lucide-react';
 
 interface AdminStats {
     users: number;
     totalCoins: number;
     totalXP: number;
-    redemptions: number;
-    popularRewards: { name: string; count: number; emoji: string }[];
+    totalQuestions: number;
+    totalCorrect: number;
+    averageAccuracy: number;
+}
+
+interface UserStats {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    xp: number;
+    isAdmin: boolean;
+    isSubscribed: boolean;
+    questsPlayed: number;
+    totalQuestions: number;
+    totalCorrect: number;
+    accuracy: number;
+}
+
+interface PerformanceMetric {
+    date: string;
+    answered: number;
+    correct: number;
+    accuracy: number;
 }
 
 interface AdminDashboardProps {
@@ -25,35 +36,22 @@ interface AdminDashboardProps {
 }
 
 const API_BASE = '/api/admin';
-const EMOJIS = ['🎁', '🏆', '📚', '✏️', '🖊️', '🌟', '💡', '🎓', '🎮', '🎨', '🛒', '💎', '🎵', '📱', '🍫'];
-
-const emptyForm = { name: '', description: '', emoji: '🎁', coinCost: '', stock: '' };
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
-    const [rewards, setRewards] = useState<Reward[]>([]);
     const [stats, setStats] = useState<AdminStats | null>(null);
-    const [tab, setTab] = useState<'analytics' | 'rewards' | 'users'>('analytics');
+    const [tab, setTab] = useState<'analytics' | 'users'>('analytics');
     const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [editReward, setEditReward] = useState<Reward | null>(null);
-    const [form, setForm] = useState(emptyForm);
-    const [saving, setSaving] = useState(false);
+    const [users, setUsers] = useState<UserStats[]>([]);
+    const [selectedUser, setSelectedUser] = useState<UserStats | null>(null);
+    const [userPerformance, setUserPerformance] = useState<PerformanceMetric[]>([]);
+    const [loadingPerformance, setLoadingPerformance] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-    const [users, setUsers] = useState<any[]>([]);
 
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     const showToast = (msg: string, type: 'success' | 'error') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3000);
-    };
-
-    const fetchRewards = async () => {
-        try {
-            const res = await fetch(`${API_BASE}/rewards`, { headers });
-            if (res.ok) setRewards(await res.json());
-        } catch { /* ignore */ }
     };
 
     const fetchUsers = async () => {
@@ -70,121 +68,162 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         } catch { /* ignore */ }
     };
 
+    const fetchUserPerformance = async (userId: string) => {
+        setLoadingPerformance(true);
+        try {
+            const res = await fetch(`${API_BASE}/users/${userId}/performance`, { headers });
+            if (res.ok) setUserPerformance(await res.json());
+        } catch {
+            showToast('Failed to fetch performance data', 'error');
+        }
+        setLoadingPerformance(false);
+    };
+
     useEffect(() => {
         const init = async () => {
             setLoading(true);
-            await Promise.all([fetchRewards(), fetchUsers(), fetchStats()]);
+            await Promise.all([fetchUsers(), fetchStats()]);
             setLoading(false);
         };
         init();
     }, [token]);
 
-    const openCreate = () => {
-        setEditReward(null);
-        setForm(emptyForm);
-        setShowModal(true);
+    const handleBackToUsers = () => {
+        setSelectedUser(null);
+        setUserPerformance([]);
     };
 
-    const openEdit = (r: Reward) => {
-        setEditReward(r);
-        setForm({ name: r.name, description: r.description, emoji: r.emoji, coinCost: String(r.coinCost), stock: r.stock !== null ? String(r.stock) : '' });
-        setShowModal(true);
-    };
-
-    const handleSave = async () => {
-        if (!form.name || !form.description || !form.coinCost) {
-            showToast('Name, description, and coin cost are required', 'error');
-            return;
-        }
-        setSaving(true);
-        try {
-            const url = editReward ? `${API_BASE}/rewards/${editReward.id}` : `${API_BASE}/rewards`;
-            const method = editReward ? 'PUT' : 'POST';
-            const res = await fetch(url, { method, headers, body: JSON.stringify(form) });
-            if (res.ok) {
-                await fetchRewards();
-                await fetchStats();
-                setShowModal(false);
-                showToast(editReward ? 'Reward updated!' : 'Reward created!', 'success');
-            } else {
-                const d = await res.json();
-                showToast(d.error || 'Failed to save', 'error');
-            }
-        } catch {
-            showToast('Network error', 'error');
-        }
-        setSaving(false);
-    };
-
-    const handleToggleActive = async (r: Reward) => {
-        try {
-            const res = await fetch(`${API_BASE}/rewards/${r.id}`, {
-                method: 'PUT', headers,
-                body: JSON.stringify({ isActive: !r.isActive })
-            });
-            if (res.ok) setRewards(prev => prev.map(x => x.id === r.id ? { ...x, isActive: !x.isActive } : x));
-        } catch { /* ignore */ }
-    };
-
-    const handleDelete = async (id: string) => {
-        try {
-            const res = await fetch(`${API_BASE}/rewards/${id}`, { method: 'DELETE', headers });
-            if (res.ok) {
-                setRewards(prev => prev.filter(r => r.id !== id));
-                await fetchStats();
-                showToast('Reward deleted', 'success');
-            }
-        } catch { /* ignore */ }
-        setDeleteConfirm(null);
+    const handleSelectUser = (user: UserStats) => {
+        setSelectedUser(user);
+        fetchUserPerformance(user.id);
     };
 
     const renderAnalytics = () => {
         if (!stats) return null;
         return (
             <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
-                        { label: 'Total Users', value: stats.users, icon: <Users className="text-blue-500" size={18} />, bg: 'bg-blue-50' },
-                        { label: 'Coins Issued', value: stats.totalCoins, icon: <DollarSign className="text-yellow-500" size={18} />, bg: 'bg-yellow-50' },
-                        { label: 'Total XP Earned', value: stats.totalXP, icon: <Award className="text-purple-500" size={18} />, bg: 'bg-purple-50' },
-                        { label: 'Redemptions', value: stats.redemptions, icon: <TrendingUp className="text-green-500" size={18} />, bg: 'bg-green-50' }
+                        { label: 'Total Students', value: stats.users, icon: <Users className="text-blue-500" size={18} />, bg: 'bg-blue-50' },
+                        { label: 'Questions Answered', value: stats.totalQuestions, icon: <BookOpen className="text-purple-500" size={18} />, bg: 'bg-purple-50' },
+                        { label: 'Avg. Accuracy', value: `${stats.averageAccuracy}%`, icon: <Target className="text-green-500" size={18} />, bg: 'bg-green-50' }
                     ].map((s, i) => (
-                        <div key={i} className={`${s.bg} rounded-2xl p-5 border border-white/50 shadow-sm transition-all hover:shadow-md`}>
+                        <div key={i} className={`${s.bg} rounded-2xl p-6 border border-white/50 shadow-sm transition-all hover:shadow-md`}>
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-[10px] font-bold text-brand-dark/40 uppercase tracking-wider">{s.label}</span>
                                 {s.icon}
                             </div>
-                            <div className="text-2xl font-display font-bold text-brand-dark">{s.value.toLocaleString()}</div>
+                            <div className="text-3xl font-display font-bold text-brand-dark">{s.value.toLocaleString()}</div>
                         </div>
                     ))}
                 </div>
 
-                <div className="bg-white/80 rounded-3xl p-6 border border-white/50 shadow-sm">
-                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2">
-                        <BarChart2 size={20} className="text-brand-orange" />
-                        Popular Rewards
+                <div className="bg-white/80 rounded-3xl p-8 border border-white/50 shadow-sm">
+                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2 text-brand-dark">
+                        <TrendingUp size={24} className="text-brand-orange" />
+                        Platform Growth
                     </h3>
-                    <div className="space-y-5">
-                        {stats.popularRewards.length === 0 ? (
-                            <p className="text-center py-8 text-brand-dark/30 font-bold italic">No redemptions yet to analyze</p>
-                        ) : stats.popularRewards.map((r, i) => (
-                            <div key={i} className="flex items-center gap-4">
-                                <div className="text-2xl w-10 h-10 bg-brand-dark/5 rounded-xl flex items-center justify-center shrink-0">{r.emoji}</div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="font-bold text-sm truncate">{r.name}</span>
-                                        <span className="text-xs font-bold text-brand-dark/40">{r.count} redemptions</span>
-                                    </div>
-                                    <div className="w-full bg-brand-dark/5 h-2 rounded-full overflow-hidden">
-                                        <div
-                                            className="bg-brand-orange h-full rounded-full transition-all duration-1000"
-                                            style={{ width: `${stats.redemptions > 0 ? (r.count / stats.redemptions) * 100 : 0}%` }}
-                                        />
-                                    </div>
-                                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <p className="text-sm font-bold text-brand-dark/60">Community Engagement</p>
+                            <div className="flex items-center justify-between p-4 bg-brand-dark/5 rounded-2xl">
+                                <span className="text-sm font-medium">Total XP Distributed</span>
+                                <span className="font-bold text-brand-dark">⭐ {stats.totalXP.toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center justify-between p-4 bg-brand-dark/5 rounded-2xl">
+                                <span className="text-sm font-medium">Global Correct Answers</span>
+                                <span className="font-bold text-brand-green">✅ {stats.totalCorrect.toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col justify-center items-center p-8 bg-brand-orange/5 rounded-3xl border border-brand-orange/10">
+                            <Target size={48} className="text-brand-orange mb-4 opacity-20" />
+                            <p className="text-sm font-bold text-brand-dark/60 mb-1 text-center">Platform Accuracy</p>
+                            <span className="text-5xl font-display font-bold text-brand-orange">{stats.averageAccuracy}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderUserPerformance = () => {
+        if (!selectedUser) return null;
+        return (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <button onClick={handleBackToUsers} className="flex items-center gap-2 text-sm font-bold text-brand-dark/50 hover:text-brand-dark transition-colors mb-4">
+                    <ArrowLeft size={16} /> Back to User List
+                </button>
+
+                <div className="bg-white/80 rounded-3xl p-6 border border-white/50 shadow-sm">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-3xl shadow-lg">
+                            {selectedUser.name[0].toUpperCase()}
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-display font-bold">{selectedUser.name}</h2>
+                            <p className="text-brand-dark/40 font-medium">{selectedUser.email}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                            { label: 'Total XP', value: selectedUser.xp, icon: '⭐' },
+                            { label: 'Questions', value: selectedUser.totalQuestions, icon: '📚' },
+                            { label: 'Correct', value: selectedUser.totalCorrect, icon: '✅' },
+                            { label: 'Accuracy', value: `${selectedUser.accuracy}%`, icon: '🎯' }
+                        ].map((s, i) => (
+                            <div key={i} className="p-4 bg-brand-dark/5 rounded-2xl">
+                                <p className="text-[10px] font-bold text-brand-dark/40 uppercase mb-1">{s.label}</p>
+                                <div className="text-lg font-bold">{s.icon} {s.value}</div>
                             </div>
                         ))}
                     </div>
+                </div>
+
+                <div className="bg-white/80 rounded-3xl p-8 border border-white/50 shadow-sm">
+                    <h3 className="font-display font-bold text-xl mb-6 flex items-center gap-2">
+                        <Calendar size={20} className="text-brand-orange" />
+                        Daily Performance History
+                    </h3>
+
+                    {loadingPerformance ? (
+                        <div className="text-center py-12 text-brand-dark/40 font-bold">Fetching history...</div>
+                    ) : userPerformance.length === 0 ? (
+                        <p className="text-center py-12 text-brand-dark/30 font-bold italic">No performance data recorded yet</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="text-left border-b border-brand-dark/5">
+                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Date</th>
+                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Answered</th>
+                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Correct</th>
+                                        <th className="pb-4 text-[10px] font-bold text-brand-dark/40 uppercase">Accuracy</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-brand-dark/5">
+                                    {userPerformance.map((p, i) => (
+                                        <tr key={i} className="hover:bg-brand-dark/5 transition-colors">
+                                            <td className="py-4 font-bold text-sm">{new Date(p.date).toLocaleDateString()}</td>
+                                            <td className="py-4 text-sm">{p.answered}</td>
+                                            <td className="py-4 text-sm font-bold text-brand-green">{p.correct}</td>
+                                            <td className="py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 bg-brand-dark/5 h-2 rounded-full overflow-hidden min-w-[60px]">
+                                                        <div
+                                                            className={`h-full rounded-full ${p.accuracy > 80 ? 'bg-green-500' : p.accuracy > 50 ? 'bg-brand-orange' : 'bg-red-500'}`}
+                                                            style={{ width: `${p.accuracy}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold w-10">{p.accuracy}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -192,7 +231,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
 
     return (
         <div className="max-w-5xl mx-auto pt-10 pb-16 px-4">
-            {/* Toast */}
             {toast && (
                 <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2 px-6 py-3 rounded-2xl shadow-2xl font-bold text-white text-sm animate-pop-in
           ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -201,162 +239,64 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                 </div>
             )}
 
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-display font-bold">Admin Dashboard</h1>
-                    <p className="text-brand-dark/40 text-sm mt-1">Portal overview and data analytics</p>
+                    <h1 className="text-3xl font-display font-bold">Admin Insights</h1>
+                    <p className="text-brand-dark/40 text-sm mt-1">Student performance and engagement monitoring</p>
                 </div>
-                {tab === 'rewards' && (
-                    <button onClick={openCreate}
-                        className="flex items-center gap-2 bg-gradient-to-r from-brand-orange to-brand-accent text-white font-bold px-5 py-2.5 rounded-2xl shadow-md hover:shadow-orange-200 transition-all text-sm">
-                        <Plus size={16} /> Add Reward
-                    </button>
-                )}
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 bg-white/50 p-1 rounded-2xl mb-6 w-fit">
-                {([['analytics', '📊 Stats'], ['rewards', '🎁 Rewards'], ['users', '👥 Users']] as const).map(([key, label]) => (
-                    <button key={key} onClick={() => setTab(key)}
-                        className={`px-5 py-2 rounded-xl font-bold text-sm transition-all
-              ${tab === key ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark'}`}>
-                        {label}
-                    </button>
-                ))}
-            </div>
-
-            {loading ? (
-                <div className="text-center py-20 text-brand-dark/40 font-bold">Loading...</div>
-            ) : tab === 'analytics' ? (
-                renderAnalytics()
-            ) : tab === 'rewards' ? (
-                rewards.length === 0 ? (
-                    <div className="text-center py-24">
-                        <Package size={48} className="mx-auto text-brand-dark/20 mb-4" />
-                        <p className="text-brand-dark/40 font-bold">No rewards yet. Add your first one!</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {rewards.map(r => (
-                            <div key={r.id} className={`bg-white/80 backdrop-blur rounded-2xl p-5 flex items-center gap-4 shadow-sm border transition-all
-                ${r.isActive ? 'border-white/50' : 'border-brand-dark/5 opacity-60'}`}>
-                                <span className="text-3xl">{r.emoji}</span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="font-bold text-brand-dark">{r.name}</p>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${r.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                                            {r.isActive ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-brand-dark/50 truncate">{r.description}</p>
-                                    <div className="flex gap-3 mt-1 text-xs text-brand-dark/40 font-bold">
-                                        <span>🪙 {r.coinCost} coins</span>
-                                        <span>{r.stock !== null ? `📦 ${r.stock} left` : '♾️ Unlimited'}</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button onClick={() => handleToggleActive(r)} title={r.isActive ? 'Deactivate' : 'Activate'}
-                                        className="p-2 rounded-xl hover:bg-brand-dark/5 transition-all text-brand-dark/40 hover:text-brand-dark">
-                                        {r.isActive ? <ToggleRight size={20} className="text-green-500" /> : <ToggleLeft size={20} />}
-                                    </button>
-                                    <button onClick={() => openEdit(r)}
-                                        className="p-2 rounded-xl hover:bg-blue-50 transition-all text-brand-dark/40 hover:text-brand-blue">
-                                        <Edit2 size={16} />
-                                    </button>
-                                    <button onClick={() => setDeleteConfirm(r.id)}
-                                        className="p-2 rounded-xl hover:bg-red-50 transition-all text-brand-dark/40 hover:text-red-500">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )
-            ) : (
-                <div className="space-y-3">
-                    {users.map(u => (
-                        <div key={u.id} className="bg-white/80 rounded-2xl p-4 flex items-center gap-4 border border-white/50 flex-wrap">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-blue to-indigo-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                {u.name?.[0]?.toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-bold text-brand-dark text-sm">{u.name} {u.isAdmin && <span className="text-xs text-brand-orange font-bold">Admin</span>}</p>
-                                <p className="text-xs text-brand-dark/40 truncate">{u.email}</p>
-                            </div>
-                            <div className="flex gap-4 text-xs font-bold text-brand-dark/50">
-                                <span>⭐ {u.xp} XP</span>
-                                <span>🪙 {u.coins}</span>
-                                <span>🎮 {u.questsPlayed} quests</span>
-                                {u.isSubscribed && <span className="text-green-500">PRO</span>}
-                            </div>
-                        </div>
+            {!selectedUser && (
+                <div className="flex gap-2 bg-white/50 p-1 rounded-2xl mb-6 w-fit">
+                    {([['analytics', '📊 Overview'], ['users', '👥 Students']] as const).map(([key, label]) => (
+                        <button key={key} onClick={() => setTab(key)}
+                            className={`px-5 py-2 rounded-xl font-bold text-sm transition-all
+                  ${tab === key ? 'bg-white shadow-sm text-brand-dark' : 'text-brand-dark/40 hover:text-brand-dark'}`}>
+                            {label}
+                        </button>
                     ))}
                 </div>
             )}
 
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl animate-pop-in" onClick={e => e.stopPropagation()}>
-                        <h2 className="font-display font-bold text-2xl mb-6">{editReward ? 'Edit Reward' : 'New Reward'}</h2>
-
-                        {/* Emoji picker */}
-                        <div className="mb-4">
-                            <label className="text-xs font-bold text-brand-dark/50 uppercase tracking-wide block mb-2">Icon</label>
-                            <div className="flex flex-wrap gap-2">
-                                {EMOJIS.map(e => (
-                                    <button key={e} onClick={() => setForm(f => ({ ...f, emoji: e }))}
-                                        className={`text-xl p-2 rounded-xl transition-all ${form.emoji === e ? 'bg-brand-orange/10 ring-2 ring-brand-orange' : 'hover:bg-brand-dark/5'}`}>
-                                        {e}
-                                    </button>
-                                ))}
+            {loading ? (
+                <div className="text-center py-20 text-brand-dark/40 font-bold">Analyzing data...</div>
+            ) : selectedUser ? (
+                renderUserPerformance()
+            ) : tab === 'analytics' ? (
+                renderAnalytics()
+            ) : (
+                <div className="grid grid-cols-1 gap-3">
+                    {users.map(u => (
+                        <div
+                            key={u.id}
+                            onClick={() => handleSelectUser(u)}
+                            className="bg-white/80 rounded-2xl p-5 flex items-center gap-6 border border-white/50 hover:border-brand-blue/30 hover:shadow-md transition-all cursor-pointer group"
+                        >
+                            <div className="w-12 h-12 rounded-2xl bg-brand-dark/5 flex items-center justify-center text-brand-dark font-display font-bold text-lg shrink-0 group-hover:bg-brand-blue group-hover:text-white transition-colors">
+                                {u.name[0].toUpperCase()}
                             </div>
-                        </div>
-
-                        {[
-                            { key: 'name', label: 'Reward Name', placeholder: 'e.g. Free Month Subscription', type: 'text' },
-                            { key: 'description', label: 'Description', placeholder: 'e.g. One month free access to all courses', type: 'text' },
-                            { key: 'coinCost', label: 'Coin Cost', placeholder: 'e.g. 500', type: 'number' },
-                            { key: 'stock', label: 'Stock (leave blank = unlimited)', placeholder: 'e.g. 10', type: 'number' }
-                        ].map(({ key, label, placeholder, type }) => (
-                            <div key={key} className="mb-4">
-                                <label className="text-xs font-bold text-brand-dark/50 uppercase tracking-wide block mb-1">{label}</label>
-                                <input
-                                    type={type}
-                                    value={(form as any)[key]}
-                                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                                    placeholder={placeholder}
-                                    className="w-full px-4 py-3 bg-brand-dark/5 rounded-xl font-medium text-sm outline-none focus:ring-2 focus:ring-brand-orange/30 transition-all"
-                                />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <p className="font-bold text-brand-dark">{u.name}</p>
+                                    {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
+                                </div>
+                                <p className="text-xs text-brand-dark/40 truncate">{u.email}</p>
                             </div>
-                        ))}
-
-                        <div className="flex gap-3 mt-6">
-                            <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-2xl border border-brand-dark/10 font-bold text-brand-dark/60 hover:bg-brand-dark/5 transition-all">
-                                Cancel
-                            </button>
-                            <button onClick={handleSave} disabled={saving}
-                                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-accent text-white font-bold shadow-md disabled:opacity-60 transition-all">
-                                {saving ? 'Saving...' : editReward ? 'Update' : 'Create'}
-                            </button>
+                            <div className="hidden md:flex items-center gap-8 text-center">
+                                <div>
+                                    <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Questions</p>
+                                    <p className="font-bold text-sm">{u.totalQuestions}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Accuracy</p>
+                                    <p className={`font-bold text-sm ${u.accuracy > 80 ? 'text-green-500' : u.accuracy > 50 ? 'text-brand-orange' : 'text-red-500'}`}>
+                                        {u.accuracy}%
+                                    </p>
+                                </div>
+                            </div>
+                            <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete confirm */}
-            {deleteConfirm && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl animate-pop-in text-center" onClick={e => e.stopPropagation()}>
-                        <Trash2 size={40} className="mx-auto text-red-500 mb-4" />
-                        <h3 className="font-bold text-xl mb-2">Delete Reward?</h3>
-                        <p className="text-brand-dark/50 text-sm mb-6">This will also remove all associated redemption records.</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-3 rounded-2xl border font-bold text-brand-dark/60 hover:bg-brand-dark/5 transition-all">Cancel</button>
-                            <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all">Delete</button>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             )}
         </div>

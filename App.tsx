@@ -8,16 +8,7 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { BookOpen, Trophy, Star, Sparkles, Loader2, ArrowLeft, RefreshCw, ScrollText, CheckCircle2, Zap, Brain, Rocket, Lock, LogIn, Mail, GraduationCap, Coins, Gift, LogOut, User as UserIcon, ShieldCheck, Coffee, Plus } from 'lucide-react';
 import { useAuth } from './contexts/useAuth';
 import { PaymentForm } from './components/PaymentForm';
-import { Hero } from './components/Hero';
-import { SyllabusExplorer } from './components/SyllabusExplorer';
-import { Benefits } from './components/Benefits';
-import { HowItWorks } from './components/HowItWorks';
-import { Testimonials } from './components/Testimonials';
-import { FAQ } from './components/FAQ';
-import { Footer } from './components/Footer';
-import { PromotionBanner } from './components/PromotionBanner';
 import { LoginModal } from './components/LoginModal';
-import RewardsShop from './components/RewardsShop';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 
@@ -709,7 +700,7 @@ export default function App() {
     }
   };
 
-  const handleGameComplete = async (score: number) => {
+  const handleGameComplete = async (score: number, correctAnswers: number) => {
     // Save to Database first
     if (user) {
       try {
@@ -723,7 +714,9 @@ export default function App() {
           body: JSON.stringify({
             score,
             mode: gameMode,
-            questId: selectedCustomQuest?.id
+            questId: selectedCustomQuest?.id,
+            correctAnswers,
+            totalQuestions: questions.length
           })
         });
         if (!res.ok) console.error("Failed to save result");
@@ -931,48 +924,17 @@ export default function App() {
 
   const renderHome = () => (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      {showPromo && (
-        <PromotionBanner
-          onClose={() => setShowPromo(false)}
-          onAction={() => setView('PRICING')}
-        />
-      )}
-      <Hero
-        onStart={handleStartProcess}
-        onViewPricing={() => setView('PRICING')}
-        isLoggedIn={!!user}
-        isSubscribed={!!user?.isSubscribed}
-      />
-
-      <Benefits />
-
-      <SyllabusExplorer
-        onSelectSubject={(subject, syllabus) => {
-          setSelectedSubject(subject);
-          setSelectedSyllabus(syllabus);
-          handleStartProcess();
-        }}
-      />
-
-      <HowItWorks />
-
-      <Testimonials />
-
-      <FAQ />
-
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-8">
         <h2 className="text-4xl md:text-6xl font-display font-bold text-brand-dark">
           Ready to start your <span className="text-brand-blue">quest</span>?
         </h2>
         <p className="text-xl text-brand-dark/60 max-w-2xl mx-auto font-medium">
-          Join thousands of Malaysian students mastering their syllabus with RevisionLab.
+          Master your syllabus with RevisionLab.
         </p>
         <Button size="lg" onClick={handleStartProcess} className="px-16 py-6 text-xl shadow-xl">
           Get Started For Free <Rocket className="ml-2" />
         </Button>
       </div>
-
-      <Footer />
     </div>
   );
 
@@ -1289,12 +1251,6 @@ export default function App() {
                     >
                       <UserIcon size={16} /> Dashboard
                     </button>
-                    <button
-                      onClick={() => { setView('REWARDS'); setShowProfileMenu(false); }}
-                      className="w-full text-left px-4 py-3 hover:bg-orange-50 text-sm font-bold text-brand-dark/70 hover:text-brand-orange flex items-center gap-2 transition-colors"
-                    >
-                      🛍️ Rewards Shop
-                    </button>
                     {user?.isAdmin && (
                       <button
                         onClick={() => { setView('ADMIN'); setShowProfileMenu(false); }}
@@ -1347,275 +1303,276 @@ export default function App() {
 
         {view === 'HOME' && renderHome()}
         {view === 'PRICING' && renderPricing()}
-        {view === 'TEACHER_DASHBOARD' && (
-          <TeacherDashboard
-            onBack={() => setView('HOME')}
-            onViewPricing={() => setView('PRICING')}
-          />
-        )}
+        {
+          view === 'TEACHER_DASHBOARD' && (
+            <TeacherDashboard
+              onBack={() => setView('HOME')}
+              onViewPricing={() => setView('PRICING')}
+            />
+          )
+        }
 
-        {view === 'GAME_SETUP' && (
-          <div className="max-w-4xl mx-auto space-y-8 animate-float">
-            <div className="flex items-center gap-4 mb-8">
-              <Button variant="outline" size="sm" onClick={() => setView('HOME')}>
-                <ArrowLeft size={20} /> Back
-              </Button>
-              <h2 className="text-3xl font-display font-bold text-brand-dark">Setup Your Quest</h2>
-            </div>
-
-            <Card>
-              {/* Mode Selection */}
-              <div className="flex gap-4 mb-8 border-b border-brand-dark/10 pb-6">
-                <button
-                  onClick={() => setGameMode('AI')}
-                  className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'AI' ? 'bg-brand-blue text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                >
-                  <Sparkles size={18} /> AI Generated Quest
-                </button>
-                <button
-                  onClick={() => setGameMode('CUSTOM')}
-                  className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'CUSTOM' ? 'bg-brand-orange text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                >
-                  <GraduationCap size={18} /> Teacher / Custom Quest
-                </button>
+        {
+          view === 'GAME_SETUP' && (
+            <div className="max-w-4xl mx-auto space-y-8 animate-float">
+              <div className="flex items-center gap-4 mb-8">
+                <Button variant="outline" size="sm" onClick={() => setView('HOME')}>
+                  <ArrowLeft size={20} /> Back
+                </Button>
+                <h2 className="text-3xl font-display font-bold text-brand-dark">Setup Your Quest</h2>
               </div>
 
-              {gameMode === 'AI' ? (
-                <>
-                  {/* Step 1: Syllabus Selection */}
-                  <div className="mb-8">
-                    <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">1. Select Syllabus</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
-                      {Object.values(Syllabus).map((syll) => {
-                        const isPro = user?.isSubscribed;
-                        const subLevel = (user as any)?.subscriptionLevel;
-                        const subSyllabus = (user as any)?.subscribedSyllabus;
-                        const isLocked = isPro && subLevel === 'single' && subSyllabus && subSyllabus !== syll;
+              <Card>
+                {/* Mode Selection */}
+                <div className="flex gap-4 mb-8 border-b border-brand-dark/10 pb-6">
+                  <button
+                    onClick={() => setGameMode('AI')}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'AI' ? 'bg-brand-blue text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                  >
+                    <Sparkles size={18} /> AI Generated Quest
+                  </button>
+                  <button
+                    onClick={() => setGameMode('CUSTOM')}
+                    className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'CUSTOM' ? 'bg-brand-orange text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                  >
+                    <GraduationCap size={18} /> Teacher / Custom Quest
+                  </button>
+                </div>
 
-                        return (
-                          <button
-                            key={syll}
-                            onClick={() => !isLocked && setSelectedSyllabus(syll)}
-                            disabled={isLocked}
-                            className={`p-4 rounded-xl border-2 font-bold text-left transition-all flex items-center justify-between gap-3 ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'} ${isLocked ? 'opacity-40 cursor-not-allowed bg-gray-50' : ''}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <ScrollText size={20} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
-                              <span>{syll}</span>
-                            </div>
-                            {isLocked && (
-                              <div className="bg-brand-orange/10 text-brand-orange text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
-                                <Lock size={10} /> LOCKED
+                {gameMode === 'AI' ? (
+                  <>
+                    {/* Step 1: Syllabus Selection */}
+                    <div className="mb-8">
+                      <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">1. Select Syllabus</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                        {Object.values(Syllabus).map((syll) => {
+                          const isPro = user?.isSubscribed;
+                          const subLevel = (user as any)?.subscriptionLevel;
+                          const subSyllabus = (user as any)?.subscribedSyllabus;
+                          const isLocked = isPro && subLevel === 'single' && subSyllabus && subSyllabus !== syll;
+
+                          return (
+                            <button
+                              key={syll}
+                              onClick={() => !isLocked && setSelectedSyllabus(syll)}
+                              disabled={isLocked}
+                              className={`p-4 rounded-xl border-2 font-bold text-left transition-all flex items-center justify-between gap-3 ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'} ${isLocked ? 'opacity-40 cursor-not-allowed bg-gray-50' : ''}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <ScrollText size={20} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
+                                <span>{syll}</span>
                               </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                              {isLocked && (
+                                <div className="bg-brand-orange/10 text-brand-orange text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
+                                  <Lock size={10} /> LOCKED
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Step 2: Grade Selection */}
-                  <div className="mb-8">
-                    <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">2. Select Grade / Level</label>
-                    <div className="space-y-4">
-                      {selectedSyllabus && (() => {
-                        const grades = getGradesBySyllabus(selectedSyllabus);
-                        return (
-                          <>
-                            {grades.primary.length > 0 && (
-                              <div>
-                                <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Primary / Elementary</span>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                                  {grades.primary.map((grade) => (
-                                    <button
-                                      key={grade}
-                                      onClick={() => setSelectedGrade(grade)}
-                                      className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                                    >
-                                      {grade}
-                                    </button>
-                                  ))}
+                    {/* Step 2: Grade Selection */}
+                    <div className="mb-8">
+                      <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">2. Select Grade / Level</label>
+                      <div className="space-y-4">
+                        {selectedSyllabus && (() => {
+                          const grades = getGradesBySyllabus(selectedSyllabus);
+                          return (
+                            <>
+                              {grades.primary.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Primary / Elementary</span>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                                    {grades.primary.map((grade) => (
+                                      <button
+                                        key={grade}
+                                        onClick={() => setSelectedGrade(grade)}
+                                        className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                                      >
+                                        {grade}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                            {grades.secondary.length > 0 && (
-                              <div>
-                                <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Secondary / Middle School</span>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                                  {grades.secondary.map((grade) => (
-                                    <button
-                                      key={grade}
-                                      onClick={() => setSelectedGrade(grade)}
-                                      className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                                    >
-                                      {grade}
-                                    </button>
-                                  ))}
+                              )}
+                              {grades.secondary.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Secondary / Middle School</span>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                                    {grades.secondary.map((grade) => (
+                                      <button
+                                        key={grade}
+                                        onClick={() => setSelectedGrade(grade)}
+                                        className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                                      >
+                                        {grade}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                            {grades.advanced && grades.advanced.length > 0 && (
-                              <div>
-                                <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Advanced / Pre-U</span>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
-                                  {grades.advanced.map((grade) => (
-                                    <button
-                                      key={grade}
-                                      onClick={() => setSelectedGrade(grade)}
-                                      className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                                    >
-                                      {grade}
-                                    </button>
-                                  ))}
+                              )}
+                              {grades.advanced && grades.advanced.length > 0 && (
+                                <div>
+                                  <span className="text-xs font-bold text-brand-dark/40 mb-2 block uppercase">Advanced / Pre-U</span>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2">
+                                    {grades.advanced.map((grade) => (
+                                      <button
+                                        key={grade}
+                                        onClick={() => setSelectedGrade(grade)}
+                                        className={`p-2 py-3 rounded-xl border-2 font-bold text-xs transition-all ${selectedGrade === grade ? 'border-brand-blue bg-blue-50 text-brand-blue' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                                      >
+                                        {grade}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Step 3: Subject Selection */}
-                  <div className="mb-8">
-                    <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">3. Choose Subject</label>
-                    {!selectedGrade ? (
-                      <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-brand-dark/20 rounded-xl text-brand-dark/40">
-                        <BookOpen size={24} className="mb-1" />
-                        <p className="text-sm">Select a grade first to see available subjects</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {getSubjectsByGrade(selectedGrade, selectedSyllabus).map((sub) => (
-                          <button
-                            key={sub.id}
-                            onClick={() => setSelectedSubject(sub.id)}
-                            className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${selectedSubject === sub.id ? 'border-brand-blue bg-white shadow-md scale-105' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
-                          >
-                            <div className={`${sub.color} w-10 h-10 flex items-center justify-center rounded-full text-lg shadow-sm`}>{sub.icon}</div>
-                            <span className="font-bold text-xs text-center leading-tight">{sub.id}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Step 4: Topic Selection */}
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">4. Select Topic</label>
-                    {selectedSubject && selectedGrade && (
-                      <button onClick={fetchSyllabus} className="text-xs text-brand-blue flex items-center gap-1 hover:underline">
-                        <RefreshCw size={12} /> Refresh Topics
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="min-h-[120px] mb-8">
-                    {!selectedSubject || !selectedSyllabus || !selectedGrade ? (
-                      <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-brand-dark/20 rounded-xl text-brand-dark/40">
-                        <BookOpen size={32} className="mb-2" />
-                        <p>Select syllabus, grade and subject first</p>
-                      </div>
-                    ) : loadingTopics ? (
-                      <div className="flex flex-col items-center justify-center h-32 space-y-3">
-                        <Loader2 className="animate-spin text-brand-blue" size={32} />
-                        <p className="text-sm font-bold text-brand-blue animate-pulse">Scanning {selectedSyllabus} Syllabus...</p>
-                      </div>
-                    ) : topics.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {topics.map((topic, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => setSelectedTopic(topic)}
-                            className={`p-3 text-left rounded-xl border-2 font-bold transition-all text-sm ${selectedTopic === topic ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'}`}
-                          >
-                            {topic}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center p-8 text-brand-dark/50">
-                        <p>No topics found. Try refreshing.</p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="mb-8">
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">Select a Custom Quest</label>
-                    {user && (
-                      <button
-                        onClick={() => setView('TEACHER_DASHBOARD')}
-                        className="text-xs font-bold text-brand-orange flex items-center gap-1 hover:underline bg-brand-orange/5 px-3 py-1.5 rounded-lg border border-brand-orange/20 transition-all hover:bg-brand-orange/10"
-                      >
-                        <Plus size={14} /> Manage / Create Quests
-                      </button>
-                    )}
-                  </div>
-
-                  {customQuests.length === 0 ? (
-                    <div className="text-center p-12 border-2 border-dashed border-brand-dark/10 rounded-xl">
-                      <p className="text-brand-dark/60 mb-4">No custom quests found.</p>
-                      {user ? (
-                        <Button onClick={() => setView('TEACHER_DASHBOARD')}>Create Your First Quest</Button>
+                    {/* Step 3: Subject Selection */}
+                    <div className="mb-8">
+                      <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">3. Choose Subject</label>
+                      {!selectedGrade ? (
+                        <div className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-brand-dark/20 rounded-xl text-brand-dark/40">
+                          <BookOpen size={24} className="mb-1" />
+                          <p className="text-sm">Select a grade first to see available subjects</p>
+                        </div>
                       ) : (
-                        <p className="text-sm text-brand-dark/40 italic">Ask your teacher or parent to create one!</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {getSubjectsByGrade(selectedGrade, selectedSyllabus).map((sub) => (
+                            <button
+                              key={sub.id}
+                              onClick={() => setSelectedSubject(sub.id)}
+                              className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${selectedSubject === sub.id ? 'border-brand-blue bg-white shadow-md scale-105' : 'border-transparent bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                            >
+                              <div className={`${sub.color} w-10 h-10 flex items-center justify-center rounded-full text-lg shadow-sm`}>{sub.icon}</div>
+                              <span className="font-bold text-xs text-center leading-tight">{sub.id}</span>
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {customQuests.map((quest) => (
-                        <button
-                          key={quest.id}
-                          onClick={() => setSelectedCustomQuest(quest)}
-                          className={`p-4 rounded-xl border-2 text-left transition-all ${selectedCustomQuest?.id === quest.id ? 'border-brand-orange bg-orange-50 ring-2 ring-brand-orange/20' : 'border-brand-dark/10 bg-white hover:border-brand-orange/50'}`}
-                        >
-                          <div className="font-bold text-lg mb-1">{quest.title}</div>
-                          <div className="text-xs font-bold text-brand-dark/50">
-                            {quest.questions.length} Questions • {new Date(quest.createdAt).toLocaleDateString()}
-                          </div>
+
+                    {/* Step 4: Topic Selection */}
+                    <div className="flex justify-between items-center mb-3">
+                      <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">4. Select Topic</label>
+                      {selectedSubject && selectedGrade && (
+                        <button onClick={fetchSyllabus} className="text-xs text-brand-blue flex items-center gap-1 hover:underline">
+                          <RefreshCw size={12} /> Refresh Topics
                         </button>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
 
-              <Button
-                fullWidth
-                size="lg"
-                disabled={gameMode === 'AI' ? (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade || loadingGame) : (!selectedCustomQuest)}
-                onClick={handleStartGame}
-              >
-                {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : 'Start Adventure'}
-              </Button>
-            </Card>
-          </div>
-        )}
+                    <div className="min-h-[120px] mb-8">
+                      {!selectedSubject || !selectedSyllabus || !selectedGrade ? (
+                        <div className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-brand-dark/20 rounded-xl text-brand-dark/40">
+                          <BookOpen size={32} className="mb-2" />
+                          <p>Select syllabus, grade and subject first</p>
+                        </div>
+                      ) : loadingTopics ? (
+                        <div className="flex flex-col items-center justify-center h-32 space-y-3">
+                          <Loader2 className="animate-spin text-brand-blue" size={32} />
+                          <p className="text-sm font-bold text-brand-blue animate-pulse">Scanning {selectedSyllabus} Syllabus...</p>
+                        </div>
+                      ) : topics.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {topics.map((topic, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setSelectedTopic(topic)}
+                              className={`p-3 text-left rounded-xl border-2 font-bold transition-all text-sm ${selectedTopic === topic ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'}`}
+                            >
+                              {topic}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-8 text-brand-dark/50">
+                          <p>No topics found. Try refreshing.</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-4">
+                      <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">Select a Custom Quest</label>
+                      {user && (
+                        <button
+                          onClick={() => setView('TEACHER_DASHBOARD')}
+                          className="text-xs font-bold text-brand-orange flex items-center gap-1 hover:underline bg-brand-orange/5 px-3 py-1.5 rounded-lg border border-brand-orange/20 transition-all hover:bg-brand-orange/10"
+                        >
+                          <Plus size={14} /> Manage / Create Quests
+                        </button>
+                      )}
+                    </div>
 
-        {view === 'GAME_SESSION' && (
-          <GameSession
-            questions={questions}
-            onComplete={handleGameComplete}
-            onExit={() => setView('HOME')}
-          />
-        )}
-        {view === 'DASHBOARD' && renderDashboard()}
-        {view === 'REWARDS' && user && (
-          <RewardsShop
-            userCoins={stats.coins || 0}
-            token={localStorage.getItem('quest_token') || ''}
-            onCoinsUpdated={(newCoins) => setStats(prev => ({ ...prev, coins: newCoins }))}
-          />
-        )}
-        {view === 'ADMIN' && (
-          user?.isAdmin ? (
-            <AdminDashboard token={localStorage.getItem('quest_token') || ''} />
-          ) : (
-            <AdminLogin />
+                    {customQuests.length === 0 ? (
+                      <div className="text-center p-12 border-2 border-dashed border-brand-dark/10 rounded-xl">
+                        <p className="text-brand-dark/60 mb-4">No custom quests found.</p>
+                        {user ? (
+                          <Button onClick={() => setView('TEACHER_DASHBOARD')}>Create Your First Quest</Button>
+                        ) : (
+                          <p className="text-sm text-brand-dark/40 italic">Ask your teacher or parent to create one!</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {customQuests.map((quest) => (
+                          <button
+                            key={quest.id}
+                            onClick={() => setSelectedCustomQuest(quest)}
+                            className={`p-4 rounded-xl border-2 text-left transition-all ${selectedCustomQuest?.id === quest.id ? 'border-brand-orange bg-orange-50 ring-2 ring-brand-orange/20' : 'border-brand-dark/10 bg-white hover:border-brand-orange/50'}`}
+                          >
+                            <div className="font-bold text-lg mb-1">{quest.title}</div>
+                            <div className="text-xs font-bold text-brand-dark/50">
+                              {quest.questions.length} Questions • {new Date(quest.createdAt).toLocaleDateString()}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  fullWidth
+                  size="lg"
+                  disabled={gameMode === 'AI' ? (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade || loadingGame) : (!selectedCustomQuest)}
+                  onClick={handleStartGame}
+                >
+                  {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : 'Start Adventure'}
+                </Button>
+              </Card>
+            </div>
           )
-        )}
+        }
+
+        {
+          view === 'GAME_SESSION' && (
+            <GameSession
+              questions={questions}
+              onComplete={handleGameComplete}
+              onExit={() => setView('HOME')}
+            />
+          )
+        }
+        {view === 'DASHBOARD' && renderDashboard()}
+        {
+          view === 'ADMIN' && (
+            user?.isAdmin ? (
+              <AdminDashboard token={localStorage.getItem('quest_token') || ''} />
+            ) : (
+              <AdminLogin />
+            )
+          )
+        }
       </main>
     </div>
   );

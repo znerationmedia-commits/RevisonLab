@@ -24,14 +24,16 @@ model Quest {
 }
 
 model Result {
-  id      String   @id @default(uuid())
-  userId  String
-  questId String?
-  score   Int
-  mode    String
-  date    DateTime @default(now())
-  quest   Quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
-  user    User     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
+  id               String   @id @default(uuid())
+  userId           String
+  questId          String?
+  score           Int
+  correctAnswers   Int      @default(0)
+  totalQuestions   Int      @default(0)
+  mode            String
+  date            DateTime @default(now())
+  quest           Quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
+  user            User     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
 
   @@index([questId], map: "Result_questId_idx")
   @@index([userId], map: "Result_userId_idx")
@@ -56,35 +58,10 @@ model User {
   subscribedSyllabus    String?   // For 'single' level, which syllabus they chose
   cancelAtPeriodEnd     Boolean   @default(false)
   isAdmin              Boolean   @default(false)
-  questsPlayed          Int       @default(0)  // Track number of quests played (free tier limit: 1)
-  questsCreated         Int       @default(0)  // Track number of quests created (free tier limit: 1)
+  questsPlayed          Int       @default(0)
+  questsCreated         Int       @default(0)
   quests                Quest[]
   results               Result[]
-  redemptions           Redemption[]
-}
-
-model Reward {
-  id          String       @id @default(uuid())
-  name        String
-  description String
-  emoji       String       @default("🎁")
-  coinCost    Int
-  stock       Int?         // null = unlimited
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  redemptions Redemption[]
-}
-
-model Redemption {
-  id         String   @id @default(uuid())
-  userId     String
-  rewardId   String
-  redeemedAt DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
-  reward     Reward   @relation(fields: [rewardId], references: [id])
-
-  @@index([userId])
-  @@index([rewardId])
 }
 
 model PendingUser {

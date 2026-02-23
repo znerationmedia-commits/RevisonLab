@@ -7,7 +7,7 @@ import { CheckCircle, XCircle, Award, ArrowRight, Brain, Lightbulb, Volume2, Coi
 
 interface GameSessionProps {
   questions: Question[];
-  onComplete: (score: number) => void;
+  onComplete: (score: number, correctAnswers: number) => void;
   onExit: () => void;
 }
 
@@ -15,6 +15,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
   const [streak, setStreak] = useState(0);
 
@@ -57,10 +58,8 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
     if (index === currentQuestion.correctAnswerIndex) {
       setScore(prev => prev + 100 + (streak * 10)); // Bonus for streaks
       setStreak(prev => prev + 1);
-
-
+      setCorrectAnswersCount(prev => prev + 1);
       playSound('correct');
-
     } else {
       setStreak(0);
       playSound('wrong');
@@ -69,7 +68,9 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
 
   const handleNext = () => {
     if (isLastQuestion) {
-      onComplete(score);
+      onComplete(score, correctAnswersCount + (selectedOption === currentQuestion.correctAnswerIndex ? 0 : 0)); // wait, the count is already updated in handleOptionSelect
+      // Actually, correctAnswersCount is updated in handleOptionSelect.
+      onComplete(score, correctAnswersCount);
     } else {
       setCurrentIndex(prev => prev + 1);
       setSelectedOption(null);

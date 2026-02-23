@@ -10,7 +10,7 @@ router.use(authenticateToken, checkExpiredSubscriptions);
 
 // Save a game result
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
-    const { score, mode, questId } = req.body;
+    const { score, mode, questId, correctAnswers, totalQuestions } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -25,16 +25,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Limit check moved to /api/generation/quest
-
-        console.log(`[API] Save Result - User: ${userId}`);
-        console.log(`[API] Subscribed: ${user.isSubscribed}, Quests Played: ${user.questsPlayed}`);
-
         const result = await prisma.result.create({
             data: {
                 userId,
                 score,
                 mode,
+                totalQuestions: totalQuestions || 0,
+                correctAnswers: correctAnswers || 0,
                 questId: questId || undefined
             }
         });
