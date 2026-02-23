@@ -11,6 +11,14 @@ import { PaymentForm } from './components/PaymentForm';
 import { LoginModal } from './components/LoginModal';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
+import { Hero } from './components/Hero';
+import { Benefits } from './components/Benefits';
+import { HowItWorks } from './components/HowItWorks';
+import { Testimonials } from './components/Testimonials';
+import { FAQ } from './components/FAQ';
+import { Footer } from './components/Footer';
+import { PromotionBanner } from './components/PromotionBanner';
+import { SyllabusExplorer } from './components/SyllabusExplorer';
 
 
 const INITIAL_STATS: UserStats = {
@@ -923,8 +931,18 @@ export default function App() {
   );
 
   const renderHome = () => (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-8">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000 space-y-20 pb-20">
+      <Hero
+        onStart={handleStartProcess}
+        onViewPricing={() => setView('PRICING')}
+        isLoggedIn={!!user}
+        isSubscribed={user?.isSubscribed || false}
+      />
+
+      <Benefits />
+      <HowItWorks />
+
+      <div className="max-w-4xl mx-auto px-4 text-center space-y-8 py-20 bg-brand-orange/5 rounded-[40px] border border-brand-orange/10">
         <h2 className="text-4xl md:text-6xl font-display font-bold text-brand-dark">
           Ready to start your <span className="text-brand-blue">quest</span>?
         </h2>
@@ -935,6 +953,14 @@ export default function App() {
           Get Started For Free <Rocket className="ml-2" />
         </Button>
       </div>
+
+      <SyllabusExplorer onSelectSubject={(subj, syll) => {
+        setSelectedSubject(subj);
+        setSelectedSyllabus(syll);
+        handleStartProcess();
+      }} />
+      <Testimonials />
+      <FAQ />
     </div>
   );
 
@@ -1301,6 +1327,13 @@ export default function App() {
         {showLimitModal && <LimitReachedModal />}
         {showQuotaModal && <AiQuotaModal />}
 
+        {view === 'HOME' && showPromo && (
+          <PromotionBanner
+            onClose={() => setShowPromo(false)}
+            onAction={() => setView('PRICING')}
+          />
+        )}
+
         {view === 'HOME' && renderHome()}
         {view === 'PRICING' && renderPricing()}
         {
@@ -1574,6 +1607,7 @@ export default function App() {
           )
         }
       </main>
+      <Footer />
     </div>
   );
 }
