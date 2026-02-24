@@ -737,7 +737,8 @@ export default function App() {
 
     // Optimistic update for immediate feedback (tracked in local storage for guests)
     const xpGained = score;
-    const coinsGained = Math.floor(score / 10);
+    const accuracy = questions.length > 0 ? (correctAnswers / questions.length) : 0;
+    const coinsGained = accuracy >= 0.5 ? Math.floor(score / 25) : 0;
     const newXp = stats.xp + xpGained;
     const newLevel = Math.floor(newXp / 1000) + 1;
     const oldLevel = stats.level;

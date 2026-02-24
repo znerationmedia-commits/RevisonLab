@@ -41,7 +41,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
         // Update user stats (XP, Coins, questsPlayed)
         const xpGained = score;
-        const coinsGained = Math.floor(score / 10);
+
+        // 1 coin per correct answer
+        const coinsGained = correctAnswers || 0;
 
         await prisma.user.update({
             where: { id: userId },

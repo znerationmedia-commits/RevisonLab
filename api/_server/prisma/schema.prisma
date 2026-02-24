@@ -61,6 +61,8 @@ model User {
   isAdmin              Boolean   @default(false)
   questsPlayed          Int       @default(0)
   questsCreated         Int       @default(0)
+  resetPasswordOtp      String?
+  resetPasswordOtpExpiry DateTime?
   quests                Quest[]
   results               Result[]
   redemptions           Redemption[]

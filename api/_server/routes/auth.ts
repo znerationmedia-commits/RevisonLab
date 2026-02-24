@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
 import { checkExpiredSubscriptions } from '../middleware/checkExpiredSubscriptions.js';
 import prisma from '../db.js';
-import { sendOTPEmail } from '../services/mailService.js';
+import { sendOTPEmail, sendPasswordResetEmail } from '../services/mailService.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkeyshouldbeenv';
@@ -266,4 +266,114 @@ router.get('/me', authenticateToken, checkExpiredSubscriptions, async (req: Auth
     }
 });
 
+// FORGOT PASSWORD - Step 1: Send OTP to email
+router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            return res.status(404).json({ error: 'No account found with that email address.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await prisma.user.update({
+            where: { email },
+            data: {
+                resetPasswordOtp: otp,
+                resetPasswordOtpExpiry: expiry
+            }
+        });
+
+        const emailSent = await sendPasswordResetEmail(email, otp);
+        if (!emailSent) {
+            return res.status(500).json({ error: 'Failed to send reset email. Please try again.' });
+        }
+
+        console.log(`[AUTH] Password reset OTP sent to ${email}`);
+        res.json({ message: 'Password reset code sent to your email.', email });
+    } catch (error) {
+        console.error('[AUTH] forgot-password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// VERIFY RESET OTP - Step 2: Validate OTP, return short-lived reset token
+router.post('/verify-reset-otp', async (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' });
+
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpiry) {
+            return res.status(400).json({ error: 'No password reset request found. Please request a new code.' });
+        }
+
+        if (user.resetPasswordOtp !== otp) {
+            return res.status(400).json({ error: 'Invalid reset code. Please try again.' });
+        }
+
+        if (new Date() > user.resetPasswordOtpExpiry) {
+            return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
+        }
+
+        // Issue a short-lived token that allows password reset (5 minutes)
+        const resetToken = jwt.sign(
+            { id: user.id, purpose: 'password_reset' },
+            JWT_SECRET,
+            { expiresIn: '5m' }
+        );
+
+        res.json({ message: 'OTP verified successfully.', resetToken });
+    } catch (error) {
+        console.error('[AUTH] verify-reset-otp error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// RESET PASSWORD - Step 3: Set new password using reset token
+router.post('/reset-password', async (req, res) => {
+    const { resetToken, newPassword } = req.body;
+    if (!resetToken || !newPassword) {
+        return res.status(400).json({ error: 'Reset token and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    try {
+        let payload: any;
+        try {
+            payload = jwt.verify(resetToken, JWT_SECRET);
+        } catch (e) {
+            return res.status(400).json({ error: 'Reset link has expired or is invalid. Please request a new one.' });
+        }
+
+        if (payload.purpose !== 'password_reset') {
+            return res.status(400).json({ error: 'Invalid reset token.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: payload.id },
+            data: {
+                password: hashedPassword,
+                resetPasswordOtp: null,
+                resetPasswordOtpExpiry: null
+            }
+        });
+
+        console.log(`[AUTH] Password reset successfully for user ${payload.id}`);
+        res.json({ message: 'Password reset successfully. You can now log in with your new password.' });
+    } catch (error) {
+        console.error('[AUTH] reset-password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;
+
