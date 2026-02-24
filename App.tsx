@@ -729,16 +729,24 @@ export default function App() {
             subject: gameMode === 'AI' ? selectedSubject : selectedCustomQuest?.subject
           })
         });
-        if (!res.ok) console.error("Failed to save result");
+        if (res.ok) {
+          // Sync coins from authoritative DB value
+          const data = await res.json();
+          if (typeof data.newCoinTotal === 'number') {
+            setStats(prev => ({ ...prev, coins: data.newCoinTotal }));
+          }
+        } else {
+          console.error("Failed to save result");
+        }
       } catch (e) {
         console.error(e);
       }
     }
 
-    // Optimistic update for immediate feedback (tracked in local storage for guests)
+    // Optimistic update for immediate feedback
     const xpGained = score;
-    const accuracy = questions.length > 0 ? (correctAnswers / questions.length) : 0;
-    const coinsGained = accuracy >= 0.5 ? Math.floor(score / 25) : 0;
+    // 1 coin per correct answer — matches the backend results.ts logic
+    const coinsGained = correctAnswers || 0;
     const newXp = stats.xp + xpGained;
     const newLevel = Math.floor(newXp / 1000) + 1;
     const oldLevel = stats.level;
@@ -753,6 +761,7 @@ export default function App() {
     setStats(prev => ({
       ...prev,
       xp: newXp,
+      // Only apply optimistic coin update if not already synced from API above
       coins: (prev.coins || 0) + coinsGained,
       level: newLevel,
       completedQuizzes: newQuizzes,

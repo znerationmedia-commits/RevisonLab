@@ -54,9 +54,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
             }
         });
 
-        console.log(`[API] ✅ Result saved! User XP: ${user.xp} -> +${xpGained}`);
+        // Fetch updated coin total to send back to client
+        const updatedUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { coins: true }
+        });
 
-        res.json(result);
+        console.log(`[API] ✅ Result saved! User XP: ${user.xp} -> +${xpGained}, Coins: +${coinsGained} (total: ${updatedUser?.coins})`);
+
+        res.json({ ...result, newCoinTotal: updatedUser?.coins ?? 0 });
     } catch (error) {
         console.error('[API] Error saving result:', error);
         res.status(500).json({ error: 'Failed to save result' });
