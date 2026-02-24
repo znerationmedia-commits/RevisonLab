@@ -11,20 +11,20 @@ interface HeroProps {
 
 export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, isSubscribed }) => {
     return (
-        <section className="relative text-center space-y-8 py-16 sm:py-20 px-4 overflow-hidden">
+        <section className="relative text-left space-y-8 py-16 sm:py-20 px-4 md:px-8 overflow-hidden">
             {/* Decorative background */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] sm:w-[800px] h-[600px] sm:h-[800px] bg-brand-orange/10 rounded-full blur-[120px] -z-10 animate-float" />
             <div className="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-brand-blue/5 rounded-full blur-[80px] -z-10 animate-float delay-500" />
 
             {/* Badge */}
-            <div className="flex justify-center animate-reveal-up delay-100">
+            <div className="flex justify-start animate-reveal-up delay-100">
                 <div className="bg-white/80 backdrop-blur-md px-5 py-1.5 rounded-full shadow-md border border-brand-orange/10 text-brand-orange font-bold text-[10px] md:text-xs flex items-center gap-2 hover:scale-105 transition-transform cursor-default">
                     <Sparkles size={14} className="animate-pulse" /> The Future of Smart Revision
                 </div>
             </div>
 
             {/* Headline */}
-            <div className="space-y-4 max-w-4xl mx-auto animate-reveal-up delay-200">
+            <div className="space-y-4 max-w-4xl animate-reveal-up delay-200">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold text-brand-dark tracking-tight leading-[1.15]">
                     Master Your{' '}
                     <br className="hidden sm:block" />
@@ -33,7 +33,7 @@ export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, 
                     </span>
                 </h1>
 
-                <p className="text-sm sm:text-base lg:text-lg text-brand-dark/70 max-w-xl mx-auto leading-relaxed font-medium px-2 animate-reveal-up delay-300">
+                <p className="text-sm sm:text-base lg:text-lg text-brand-dark/70 max-w-xl leading-relaxed font-medium px-2 animate-reveal-up delay-300">
                     The ultimate gamified AI learning platform.{' '}
                     <span className="text-brand-blue font-bold">Teachers</span> conduct interactive classes while{' '}
                     <span className="text-brand-orange font-bold">students</span> revise with AI-powered quests.
@@ -41,7 +41,7 @@ export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, 
             </div>
 
             {/* CTA Buttons — centred on all screen sizes */}
-            <div className="flex flex-col items-center gap-3 pt-2 animate-reveal-up delay-400">
+            <div className="flex flex-col items-start gap-3 pt-2 animate-reveal-up delay-400">
                 <Button
                     size="lg"
                     onClick={onStart}
@@ -67,7 +67,7 @@ export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, 
             </div>
 
             {/* Trust badges */}
-            <div className="pt-10 flex flex-wrap justify-center gap-6 sm:gap-12 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500 animate-reveal-up delay-500">
+            <div className="pt-10 flex flex-wrap justify-start gap-6 sm:gap-12 md:gap-16 opacity-60 grayscale hover:grayscale-0 transition-all duration-500 animate-reveal-up delay-500">
                 {[
                     'Trusted by 10,000+ Users',
                     'KSSR/KSSM Aligned',
