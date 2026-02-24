@@ -1,6 +1,7 @@
 import React from 'react';
 import { Subject, Syllabus, GradeLevel } from '../types';
-import { BookOpen, ScrollText, Calendar } from 'lucide-react';
+import { BookOpen, ScrollText, Calendar, ExternalLink } from 'lucide-react';
+import { getPaperResource } from '../services/paperResources';
 
 interface PastYearSelectorProps {
     selectedSyllabus: Syllabus | null;
@@ -134,6 +135,35 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
                     ))}
                 </div>
             </div>
+
+            {/* Source Material Tip */}
+            {selectedSyllabus && selectedGrade && selectedSubject && selectedYear && (
+                <div className="mt-8 p-4 bg-brand-blue/5 rounded-2xl border border-brand-blue/10 flex items-center justify-between gap-4 animate-float">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-brand-blue/10 rounded-full flex items-center justify-center text-brand-blue">
+                            <BookOpen size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-brand-dark">Study the Original Paper?</p>
+                            <p className="text-xs text-brand-dark/50 font-medium">Open the official PDF source for this year.</p>
+                        </div>
+                    </div>
+                    {getPaperResource(selectedSyllabus, selectedGrade, selectedSubject, selectedYear) ? (
+                        <a
+                            href={getPaperResource(selectedSyllabus, selectedGrade, selectedSubject, selectedYear)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 bg-brand-blue text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-brand-blue/90 shadow-md transition-all active:scale-95"
+                        >
+                            <ExternalLink size={16} /> View Original
+                        </a>
+                    ) : (
+                        <div className="text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest text-right">
+                            Source link<br />coming soon
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

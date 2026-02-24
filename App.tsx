@@ -21,6 +21,7 @@ import { PromotionBanner } from './components/PromotionBanner';
 import { SyllabusExplorer } from './components/SyllabusExplorer';
 import RewardsShop from './components/RewardsShop';
 import { PastYearSelector } from './components/PastYearSelector';
+import { FeaturedPapers } from './components/FeaturedPapers';
 
 const INITIAL_STATS: UserStats = {
   xp: 0,
@@ -108,6 +109,41 @@ export default function App() {
   useEffect(() => {
     if (window.location.pathname === '/admin' || window.location.pathname === '/admin/') {
       setView('ADMIN');
+    }
+  }, []);
+
+  // Deep Linking / Quick Start Effect
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const mode = query.get('mode');
+    const subject = query.get('subject') as Subject;
+    const grade = query.get('grade') as GradeLevel;
+    const syllabus = query.get('syllabus') as Syllabus;
+    const year = query.get('year');
+    const topic = query.get('topic');
+
+    if (mode === 'past_year' || mode === 'AI' || mode === 'custom') {
+      console.log("🔗 Deep link detected:", { mode, subject, grade, syllabus, year, topic });
+
+      if (syllabus && Object.values(Syllabus).includes(syllabus)) setSelectedSyllabus(syllabus);
+      if (grade && Object.values(GradeLevel).includes(grade)) setSelectedGrade(grade);
+      if (subject && Object.values(Subject).includes(subject)) setSelectedSubject(subject);
+
+      if (mode === 'past_year') {
+        setGameMode('PAST_YEAR');
+        if (year) setSelectedYear(year);
+        setView('GAME_SETUP');
+      } else if (mode === 'AI') {
+        setGameMode('AI');
+        if (topic) setSelectedTopic(topic);
+        setView('GAME_SETUP');
+      } else if (mode === 'custom') {
+        setGameMode('CUSTOM');
+        setView('GAME_SETUP');
+      }
+
+      // Clear URL params to avoid re-triggering on reload
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
@@ -979,6 +1015,28 @@ export default function App() {
         setSelectedSyllabus(syll);
         handleStartProcess();
       }} />
+
+      <FeaturedPapers onQuickStart={(paper) => {
+        setSelectedSubject(paper.subject);
+        setSelectedSyllabus(paper.syllabus);
+        setSelectedGrade(paper.grade);
+        setSelectedYear(paper.year);
+        setGameMode('PAST_YEAR');
+
+        if (!user) {
+          setShowLoginModal(true);
+        } else {
+          // Setting the view to GAME_SETUP first ensures the UI is ready
+          setView('GAME_SETUP');
+          // We wait a tiny bit for state to propagate before starting
+          // Alternatively, we could update handleStartGame to handle injection
+          setTimeout(() => {
+            const startBtn = document.querySelector('button.bg-brand-blue.text-white'); // Simple hack or better refactor
+            if (startBtn) (startBtn as any).click();
+          }, 100);
+        }
+      }} />
+
       <Testimonials />
       <FAQ />
     </div>
