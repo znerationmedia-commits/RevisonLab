@@ -1653,7 +1653,7 @@ export default function App() {
                       <div className="text-center p-12 border-2 border-dashed border-brand-dark/10 rounded-xl">
                         <p className="text-brand-dark/60 mb-4">No custom quests found.</p>
                         {user ? (
-                          <Button onClick={() => setView('TEACHER_DASHBOARD')} className="mx-auto">Create Your First Quest</Button>
+                          <p className="text-sm text-brand-dark/40 italic">Create your quests in the Teacher Dashboard</p>
                         ) : (
                           <p className="text-sm text-brand-dark/40 italic">Ask your teacher or parent to create one!</p>
                         )}

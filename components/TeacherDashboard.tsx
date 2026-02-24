@@ -623,13 +623,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                             <BookOpen size={40} />
                         </div>
                         <h3 className="text-xl font-bold mb-2">No Quests Created Yet</h3>
-                        <p className="text-brand-dark/60 mb-6 font-medium">Create your first custom quest to get started!</p>
-                        <Button
-                            onClick={() => canCreate ? setIsCreating(true) : onViewPricing()}
-                            className="mx-auto"
-                        >
-                            {canCreate ? 'Create Quest' : 'Upgrade for Unlimited'}
-                        </Button>
+                        <p className="text-brand-dark/60 font-medium">Create your first custom quest to get started!</p>
                     </div>
                 ) : (
                     quests.map((quest) => (
