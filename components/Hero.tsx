@@ -40,18 +40,15 @@ export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, 
                 </p>
             </div>
 
-            {/* CTA Buttons — centred on all screen sizes */}
+            {/* CTA Buttons — left-aligned */}
             <div className="flex flex-col items-start gap-3 pt-2 animate-reveal-up delay-400">
                 <Button
                     size="lg"
                     onClick={onStart}
-                    className="w-full sm:w-auto min-w-[220px] relative px-8 py-4 text-base md:text-lg shadow-xl shadow-brand-blue/20 hover:shadow-brand-blue/40 hover:scale-105 active:scale-95 transition-all duration-300 overflow-hidden group"
+                    className="px-16 py-6 text-xl shadow-xl"
                 >
-                    <span className="relative z-10 flex items-center justify-center gap-2">
-                        {isLoggedIn ? 'Continue Learning' : 'Get Started for Free'}
-                        <Rocket className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    </span>
-                    <div className="absolute inset-0 bg-white/20 -skew-x-12 -translate-x-full group-hover:animate-shimmer" />
+                    {isLoggedIn ? 'Continue Learning' : 'Get Started for Free'}
+                    <Rocket className="w-5 h-5 ml-2" />
                 </Button>
 
                 {!isSubscribed && (

@@ -962,7 +962,11 @@ export default function App() {
           Master your syllabus with RevisionLab.
         </p>
         <div className="flex justify-start">
-          <Button size="lg" onClick={handleStartProcess} className="px-16 py-6 text-xl shadow-xl">
+          <Button
+            size="lg"
+            onClick={handleStartProcess}
+            className="px-16 py-6 text-xl shadow-xl"
+          >
             Get Started For Free <Rocket className="ml-2" />
           </Button>
         </div>
