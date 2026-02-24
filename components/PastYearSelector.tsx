@@ -148,20 +148,9 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
                             <p className="text-xs text-brand-dark/50 font-medium">Open the official PDF source for this year.</p>
                         </div>
                     </div>
-                    {getPaperResource(selectedSyllabus, selectedGrade, selectedSubject, selectedYear) ? (
-                        <a
-                            href={getPaperResource(selectedSyllabus, selectedGrade, selectedSubject, selectedYear)!}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 bg-brand-blue text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-brand-blue/90 shadow-md transition-all active:scale-95"
-                        >
-                            <ExternalLink size={16} /> View Original
-                        </a>
-                    ) : (
-                        <div className="text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest text-right">
-                            Source link<br />coming soon
-                        </div>
-                    )}
+                    <div className="text-[10px] font-bold text-brand-dark/30 uppercase tracking-widest text-right">
+                        Original PDF Source<br />Coming Soon
+                    </div>
                 </div>
             )}
         </div>
