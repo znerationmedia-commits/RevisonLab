@@ -60,15 +60,19 @@ export const FeaturedPapers: React.FC<{ onQuickStart: (paper: FeaturedPaper) => 
                 {FEATURED_PAPERS.map((paper, idx) => (
                     <Card
                         key={idx}
-                        className={`p-6 border-2 transition-all hover:scale-[1.02] hover:shadow-xl cursor-pointer flex flex-col h-full ${paper.color}`}
-                        onClick={() => onQuickStart(paper)}
+                        className={`p-6 border-2 transition-all flex flex-col h-full grayscale opacity-70 ${paper.color}`}
                     >
                         <div className="flex justify-between items-start mb-4">
                             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-2xl">
                                 {paper.subject === Subject.SEJARAH ? '🏛️' : paper.subject === Subject.MATH ? '➗' : '⚛️'}
                             </div>
-                            <div className="text-xs font-bold bg-white/50 px-2 py-1 rounded-lg uppercase tracking-wider text-brand-dark/40">
-                                {paper.year}
+                            <div className="flex flex-col items-end gap-1">
+                                <div className="text-xs font-bold bg-white/50 px-2 py-1 rounded-lg uppercase tracking-wider text-brand-dark/40">
+                                    {paper.year}
+                                </div>
+                                <div className="text-[10px] font-bold bg-brand-orange text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                    Coming Soon
+                                </div>
                             </div>
                         </div>
 
@@ -77,8 +81,8 @@ export const FeaturedPapers: React.FC<{ onQuickStart: (paper: FeaturedPaper) => 
 
                         <div className="flex items-center justify-between mt-auto">
                             <span className="text-xs font-bold text-brand-dark/40 uppercase tracking-widest">{paper.syllabus.split(' ')[0]}</span>
-                            <div className="flex items-center gap-1.5 text-brand-blue font-bold text-sm">
-                                Start Practice <ArrowRight size={16} />
+                            <div className="flex items-center gap-1.5 text-brand-dark/30 font-bold text-sm italic">
+                                Release {paper.year === '2023' ? 'Q1' : 'Q2'} <ArrowRight size={16} className="opacity-20" />
                             </div>
                         </div>
                     </Card>
