@@ -129,7 +129,7 @@ const superRepairJSON = (text: string): any => {
 
 // ... Limit Check & Increment ...
 router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: AuthRequest, res) => {
-    const { subject, grade, topic, syllabus } = req.body;
+    const { subject, grade, topic, syllabus, isPastYear, year } = req.body;
     const userId = req.user?.id;
 
     if (userId) {
@@ -159,7 +159,7 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         }
     }
 
-    console.log(`[GEN] Request: ${subject} / ${grade} / ${topic} / ${syllabus}`);
+    console.log(`[GEN] Request: ${subject} / ${grade} / ${topic || 'Full Paper'} / ${syllabus} ${isPastYear ? `(Past Year ${year})` : ''}`);
 
     if (isMockMode()) {
         return res.json(generateMockQuestions(subject, grade, topic, syllabus));
@@ -170,21 +170,41 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
         // GEMINI GENERATION - Generate questions with Gemini
         console.log("🤖 [GEN] Generating questions with Gemini...");
 
-        const prompt = `Generate a set of high-quality multiple-choice questions for:
-        - Subject: ${subject}
-        - Grade: ${grade}
-        - Topic: ${topic}
-        - Syllabus: ${syllabus}
+        let prompt = "";
+        if (isPastYear) {
+            prompt = `Generate a set of high-quality multiple-choice questions that strictly mimic the style, difficulty, and format of an OFFICIAL PAST YEAR EXAM for:
+            - Syllabus: ${syllabus}
+            - Subject: ${subject}
+            - Year Pattern: ${year}
+            - Grade Level: ${grade}
+            
+            INSTRUCTIONS FOR PAST YEAR PAPERS:
+            1. The questions must feel like they came from the actual ${year} ${syllabus} exam for ${subject}.
+            2. Match the specific vocabulary and trickery common in ${syllabus} exams.
+            3. Include a mix of easy, intermediate, and challenging questions.
+            4. If the syllabus is KSSR/KSSM, ensure alignment with Malaysian DSKP/SPM standards.
+            5. If IGCSE, ensure alignment with Cambridge standards.
+            `;
+        } else {
+            prompt = `Generate a set of high-quality multiple-choice questions for:
+            - Subject: ${subject}
+            - Grade: ${grade}
+            - Topic: ${topic}
+            - Syllabus: ${syllabus}
+            
+            CRITICAL INSTRUCTIONS:
+            1. Format: ${grade} level, ${syllabus} standards
+            2. Content: 4 options (A-D), correct index (0-3)
+            `;
+        }
 
-        CRITICAL INSTRUCTIONS:
-        1. Format: ${grade} level, ${syllabus} standards
-        2. Content: 4 options (A-D), correct index (0-3)
-        3. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
-        4. Explanation Quality: Each explanation MUST be specific to the question. It must:
+        prompt += `
+        GENERAL QUALITY RULES:
+        1. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
+        2. Explanation Quality: Each explanation MUST be specific to the question. It must:
            - Directly state WHY the correct answer is right (with the key fact or reason)
            - Briefly explain why a common wrong choice is misleading (if applicable)
            - Be 2-3 sentences maximum. Do NOT write generic study notes.
-           - Example of BAD explanation: "Learn more about photosynthesis in your textbook."
            - Example of GOOD explanation: "The correct answer is chlorophyll because it is the pigment that absorbs light energy in plant cells. Option B (glucose) is wrong because glucose is the product of photosynthesis, not the light absorber."
 
         JSON SPECIFICATION:

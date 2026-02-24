@@ -5,7 +5,7 @@ import { GameSession } from './components/GameSession';
 import { Button } from './components/Button';
 import { Card } from './components/Card';
 import { TeacherDashboard } from './components/TeacherDashboard';
-import { BookOpen, Trophy, Star, Sparkles, Loader2, ArrowLeft, RefreshCw, ScrollText, CheckCircle2, Zap, Brain, Rocket, Lock, LogIn, Mail, GraduationCap, Coins, Gift, LogOut, User as UserIcon, ShieldCheck, Coffee, Plus } from 'lucide-react';
+import { BookOpen, Trophy, Star, Sparkles, Loader2, ArrowLeft, RefreshCw, ScrollText, CheckCircle2, Zap, Brain, Rocket, Lock, LogIn, Mail, GraduationCap, Coins, Gift, LogOut, User as UserIcon, ShieldCheck, Coffee, Plus, Target, Trash2, Save, HelpCircle, Calendar } from 'lucide-react';
 import { useAuth } from './contexts/useAuth';
 import { PaymentForm } from './components/PaymentForm';
 import { LoginModal } from './components/LoginModal';
@@ -20,7 +20,7 @@ import { Footer } from './components/Footer';
 import { PromotionBanner } from './components/PromotionBanner';
 import { SyllabusExplorer } from './components/SyllabusExplorer';
 import RewardsShop from './components/RewardsShop';
-
+import { PastYearSelector } from './components/PastYearSelector';
 
 const INITIAL_STATS: UserStats = {
   xp: 0,
@@ -138,7 +138,8 @@ export default function App() {
   // Custom Quest State
   const [customQuests, setCustomQuests] = useState<CustomQuest[]>([]);
   const [selectedCustomQuest, setSelectedCustomQuest] = useState<CustomQuest | null>(null);
-  const [gameMode, setGameMode] = useState<'AI' | 'CUSTOM'>('AI');
+  const [gameMode, setGameMode] = useState<'AI' | 'CUSTOM' | 'PAST_YEAR'>('AI');
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   // Game State
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -680,14 +681,31 @@ export default function App() {
       return;
     }
 
-    // AI Mode
-    if (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade) {
+    // AI or Past Year Mode
+    if (!selectedSubject || !selectedSyllabus || !selectedGrade) {
+      setLoadingGame(false);
+      return;
+    }
+
+    if (gameMode === 'AI' && !selectedTopic) {
+      setLoadingGame(false);
+      return;
+    }
+
+    if (gameMode === 'PAST_YEAR' && !selectedYear) {
       setLoadingGame(false);
       return;
     }
 
     try {
-      const generatedQuestions = await geminiService.generateContent(selectedSubject, selectedGrade, selectedTopic, selectedSyllabus);
+      const generatedQuestions = await geminiService.generateContent(
+        selectedSubject,
+        selectedGrade,
+        gameMode === 'PAST_YEAR' ? 'Full Exam Paper' : selectedTopic!,
+        selectedSyllabus,
+        gameMode === 'PAST_YEAR',
+        selectedYear || undefined
+      );
 
       if (generatedQuestions.length > 0) {
         setQuestions(generatedQuestions);
@@ -1359,22 +1377,28 @@ export default function App() {
 
               <Card>
                 {/* Mode Selection */}
-                <div className="flex gap-4 mb-8 border-b border-brand-dark/10 pb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 border-b border-brand-dark/10 pb-6">
                   <button
                     onClick={() => setGameMode('AI')}
-                    className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'AI' ? 'bg-brand-blue text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                    className={`py-3 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm ${gameMode === 'AI' ? 'bg-brand-blue text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
                   >
-                    <Sparkles size={18} /> AI Generated Quest
+                    <Sparkles size={16} /> AI Quest
+                  </button>
+                  <button
+                    onClick={() => setGameMode('PAST_YEAR')}
+                    className={`py-3 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm ${gameMode === 'PAST_YEAR' ? 'bg-brand-green text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                  >
+                    <Calendar size={16} /> Past Year
                   </button>
                   <button
                     onClick={() => setGameMode('CUSTOM')}
-                    className={`flex-1 py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${gameMode === 'CUSTOM' ? 'bg-brand-orange text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                    className={`py-3 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm ${gameMode === 'CUSTOM' ? 'bg-brand-orange text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
                   >
-                    <GraduationCap size={18} /> Teacher / Custom Quest
+                    <GraduationCap size={16} /> Custom
                   </button>
                 </div>
 
-                {gameMode === 'AI' ? (
+                {gameMode === 'AI' && (
                   <>
                     {/* Step 1: Syllabus Selection */}
                     <div className="mb-8">
@@ -1534,7 +1558,26 @@ export default function App() {
                       )}
                     </div>
                   </>
-                ) : (
+                )}
+
+                {gameMode === 'PAST_YEAR' && (
+                  <div className="mb-8">
+                    <PastYearSelector
+                      selectedSyllabus={selectedSyllabus}
+                      selectedGrade={selectedGrade}
+                      selectedSubject={selectedSubject}
+                      selectedYear={selectedYear}
+                      onSyllabusSelect={setSelectedSyllabus}
+                      onGradeSelect={setSelectedGrade}
+                      onSubjectSelect={setSelectedSubject}
+                      onYearSelect={setSelectedYear}
+                      getGradesBySyllabus={getGradesBySyllabus}
+                      getSubjectsByGrade={getSubjectsByGrade}
+                    />
+                  </div>
+                )}
+
+                {gameMode === 'CUSTOM' && (
                   <div className="mb-8">
                     <div className="flex justify-between items-center mb-4">
                       <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">Select a Custom Quest</label>
@@ -1579,7 +1622,11 @@ export default function App() {
                 <Button
                   fullWidth
                   size="lg"
-                  disabled={gameMode === 'AI' ? (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade || loadingGame) : (!selectedCustomQuest)}
+                  disabled={
+                    gameMode === 'AI' ? (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade || loadingGame) :
+                      gameMode === 'PAST_YEAR' ? (!selectedSubject || !selectedYear || !selectedSyllabus || !selectedGrade || loadingGame) :
+                        (!selectedCustomQuest)
+                  }
                   onClick={handleStartGame}
                 >
                   {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : 'Start Adventure'}

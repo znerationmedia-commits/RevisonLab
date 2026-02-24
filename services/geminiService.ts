@@ -19,8 +19,8 @@ const getGradeCategory = (grade: string): 'BASIC' | 'INTERMEDIATE' | 'ADVANCED' 
   return 'ADVANCED';
 };
 
-const generateMockContent = async (subject: string, grade: string, topic: string, syllabus: string): Promise<Question[]> => {
-  console.log("🛠️ AI MOCK MODE: Deep-differentiation quest for", topic, "in", subject, "(", syllabus, ")");
+const generateMockContent = async (subject: string, grade: string, topic: string, syllabus: string, isPastYear?: boolean, year?: string): Promise<Question[]> => {
+  console.log(`🛠️ AI MOCK MODE: ${isPastYear ? 'Past Year Paper' : 'Deep-differentiation quest'} for ${topic} in ${subject} (${syllabus}) ${isPastYear ? `[${year}]` : ''}`);
   await new Promise(resolve => setTimeout(resolve, 800));
 
   // ... (Keep existing mock logic or simplify)
@@ -47,9 +47,9 @@ const generateMockSyllabus = async (subject: string, grade: string, syllabus: st
   return ["Mock Topic 1", "Mock Topic 2", "Mock Topic 3", "Mock Topic 4", "Mock Topic 5"];
 };
 
-const generateContent = async (subject: Subject, grade: GradeLevel, topic: string, syllabus: Syllabus): Promise<Question[]> => {
+const generateContent = async (subject: Subject, grade: GradeLevel, topic: string, syllabus: Syllabus, isPastYear?: boolean, year?: string): Promise<Question[]> => {
   if (isMockMode) {
-    return generateMockContent(subject, grade, topic, syllabus);
+    return generateMockContent(subject, grade, topic, syllabus, isPastYear, year);
   }
 
   try {
@@ -64,7 +64,7 @@ const generateContent = async (subject: Subject, grade: GradeLevel, topic: strin
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ subject, grade, topic, syllabus }),
+      body: JSON.stringify({ subject, grade, topic, syllabus, isPastYear, year }),
     });
 
     if (!response.ok) {
