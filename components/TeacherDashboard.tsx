@@ -626,6 +626,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                         <p className="text-brand-dark/60 mb-6 font-medium">Create your first custom quest to get started!</p>
                         <Button
                             onClick={() => canCreate ? setIsCreating(true) : onViewPricing()}
+                            className="mx-auto"
                         >
                             {canCreate ? 'Create Quest' : 'Upgrade for Unlimited'}
                         </Button>
