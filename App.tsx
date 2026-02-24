@@ -954,23 +954,7 @@ export default function App() {
       <Benefits />
       <HowItWorks />
 
-      <div className="max-w-4xl mx-auto px-8 md:px-16 text-left space-y-6 py-20 bg-brand-orange/5 rounded-[40px] border border-brand-orange/10">
-        <h2 className="text-4xl md:text-6xl font-display font-bold text-brand-dark">
-          Ready to start your <span className="text-brand-blue">quest</span>?
-        </h2>
-        <p className="text-xl text-brand-dark/60 max-w-2xl font-medium">
-          Master your syllabus with RevisionLab.
-        </p>
-        <div className="flex justify-start">
-          <Button
-            size="lg"
-            onClick={handleStartProcess}
-            className="px-16 py-6 text-xl shadow-xl"
-          >
-            Get Started For Free <Rocket className="ml-2" />
-          </Button>
-        </div>
-      </div>
+
 
       <SyllabusExplorer onSelectSubject={(subj, syll) => {
         setSelectedSubject(subj);
