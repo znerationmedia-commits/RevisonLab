@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "npx tsx api/server-local.ts",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "prisma generate --schema=api/_server/prisma/schema.prisma && vite build",
     "preview": "vite preview",
     "vercel-build": "prisma generate --schema=api/_server/prisma/schema.prisma && vite build",
