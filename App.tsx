@@ -1442,12 +1442,15 @@ export default function App() {
                   >
                     <Sparkles size={16} /> AI Quest
                   </button>
-                  <button
-                    onClick={() => setGameMode('PAST_YEAR')}
-                    className={`py-3 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm ${gameMode === 'PAST_YEAR' ? 'bg-brand-green text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
+                  <div
+                    className="relative group py-3 px-2 rounded-xl font-bold flex flex-col items-center justify-center gap-0.5 transition-all text-[10px] sm:text-xs bg-brand-dark/5 grayscale opacity-60 cursor-not-allowed"
+                    title="Past Year Practice Coming Soon"
                   >
-                    <Calendar size={16} /> Past Year
-                  </button>
+                    <div className="flex items-center gap-1.5">
+                      <Calendar size={14} /> Past Year
+                    </div>
+                    <span className="text-[8px] bg-brand-orange text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Coming Soon</span>
+                  </div>
                   <button
                     onClick={() => setGameMode('CUSTOM')}
                     className={`py-3 px-2 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-all text-xs sm:text-sm ${gameMode === 'CUSTOM' ? 'bg-brand-orange text-white shadow-lg' : 'bg-brand-dark/5 hover:bg-brand-dark/10'}`}
