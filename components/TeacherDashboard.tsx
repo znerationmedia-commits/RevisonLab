@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Question, CustomQuest, Subject, GradeLevel, Syllabus } from '../types';
 import { Button } from './Button';
 import { Card } from './Card';
-import { Plus, Trash2, Save, ArrowLeft, BookOpen, CheckCircle, HelpCircle, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, BookOpen, CheckCircle, HelpCircle, Loader2, Sparkles, Layout, List, Settings, Info, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 
 interface TeacherDashboardProps {
@@ -306,225 +306,258 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onBack, onVi
                     </Button>
                 </div>
 
-                <Card className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Quest Title</label>
-                            <input
-                                type="text"
-                                value={questTitle}
-                                onChange={(e) => setQuestTitle(e.target.value)}
-                                placeholder="e.g., Solar System Quiz"
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 focus:border-brand-blue focus:outline-none font-bold text-lg"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Syllabus</label>
-                            <select
-                                value={questSyllabus}
-                                onChange={(e) => {
-                                    setQuestSyllabus(e.target.value as Syllabus);
-                                    setQuestGrade(''); // reset grade when syllabus changes
-                                    setQuestSubject('');
-                                }}
-                                disabled={(user as any)?.subscriptionLevel === 'single'}
-                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${(user as any)?.subscriptionLevel === 'single' ? 'bg-gray-100 opacity-60' : ''}`}
-                            >
-                                <option value="">Select Syllabus</option>
-                                {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            {(user as any)?.subscriptionLevel === 'single' && (
-                                <p className="text-[10px] text-brand-orange font-bold mt-1 uppercase">Locked to Subscribed Syllabus</p>
-                            )}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Grade</label>
-                            <select
-                                value={questGrade}
-                                onChange={(e) => {
-                                    setQuestGrade(e.target.value as GradeLevel);
-                                    setQuestSubject(''); // reset subject when grade changes
-                                }}
-                                disabled={!questSyllabus}
-                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${!questSyllabus ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
-                            >
-                                <option value="">{questSyllabus ? 'Select Grade' : 'Select Syllabus first'}</option>
-                                {questSyllabus === 'Unified Examination Certificate (UEC)'
-                                    ? [GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3,
-                                    GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6]
-                                        .map(g => <option key={g} value={g}>{g}</option>)
-                                    : questSyllabus === 'Malaysian National Curriculum (KSSR/KSSM)'
-                                        ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3,
-                                        GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6],
-                                        ...[GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3,
-                                        GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6]]
-                                            .map(g => <option key={g} value={g}>{g}</option>)
-                                        : questSyllabus === 'Singapore MOE Syllabus (PSLE/O-Level)'
-                                            ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3,
-                                            GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6],
-                                            ...[GradeLevel.SEC_1, GradeLevel.SEC_2, GradeLevel.SEC_3,
-                                            GradeLevel.SEC_4, GradeLevel.SEC_5]]
-                                                .map(g => <option key={g} value={g}>{g}</option>)
-                                            : questSyllabus === 'Cambridge IGCSE'
-                                                ? [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
-                                                GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6,
-                                                GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
-                                                GradeLevel.YEAR_10, GradeLevel.YEAR_11,
-                                                GradeLevel.YEAR_12, GradeLevel.YEAR_13]
-                                                    .map(g => <option key={g} value={g}>{g}</option>)
-                                                : questSyllabus === 'International Baccalaureate (IB)'
-                                                    ? [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3,
-                                                    GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6,
-                                                    GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9,
-                                                    GradeLevel.YEAR_10, GradeLevel.YEAR_11,
-                                                    GradeLevel.YEAR_12, GradeLevel.YEAR_13]
-                                                        .map(g => <option key={g} value={g}>{g}</option>)
-                                                    : Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)
-                                }
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-brand-dark/60 uppercase mb-2">Subject</label>
-                            <select
-                                value={questSubject}
-                                onChange={(e) => setQuestSubject(e.target.value as Subject)}
-                                disabled={!questGrade}
-                                className={`w-full p-3 rounded-xl border-2 border-brand-dark/10 font-bold ${!questGrade ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
-                            >
-                                <option value="">{questGrade ? 'Select Subject' : 'Select Grade first'}</option>
-                                {getSubjectsByGrade(questGrade, questSyllabus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* Left Column: Quest Setup & Questions Preview */}
+                    <div className="lg:col-span-4 space-y-6">
+                        {/* Section 1: Details */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-brand-dark/40 mb-2">
+                                <Settings size={14} className="uppercase tracking-widest" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Quest Configuration</span>
+                            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left: Question Form */}
-                    <Card className="p-6 space-y-4 h-fit">
-                        <h3 className="font-bold text-xl flex items-center gap-2">
-                            <Plus className="bg-brand-orange/10 p-1 rounded-lg text-brand-orange box-content" size={20} />
-                            Add Question
-                        </h3>
-
-                        <div>
-                            <label className="label-text">Question Text</label>
-                            <textarea
-                                className="input-field min-h-[100px]"
-                                placeholder="What is the capital of Malaysia?"
-                                value={currentQText}
-                                onChange={(e) => setCurrentQText(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-3">
-                            <label className="label-text">Options (Select the correct one)</label>
-                            {[option1, option2, option3, option4].map((opt, idx) => (
-                                <div key={idx} className="flex items-center gap-3">
+                            <Card className="p-5 space-y-4 bg-white/80 backdrop-blur-sm border-brand-dark/5 shadow-sm">
+                                <div>
+                                    <label className="label-text">Quest Title</label>
                                     <input
-                                        type="radio"
-                                        name="correctIndex"
-                                        checked={correctIndex === idx}
-                                        onChange={() => setCorrectIndex(idx)}
-                                        className="w-5 h-5 accent-brand-green cursor-pointer"
+                                        type="text"
+                                        value={questTitle}
+                                        onChange={(e) => setQuestTitle(e.target.value)}
+                                        placeholder="e.g., Solar System Mastery"
+                                        className="w-full p-3 rounded-xl border-2 border-brand-dark/10 focus:border-brand-blue focus:outline-none font-bold text-base"
                                     />
-                                    <div className="relative w-full">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-xs text-brand-dark/30">
-                                            {String.fromCharCode(65 + idx)}
-                                        </span>
-                                        <input
-                                            type="text"
-                                            className="input-field pl-8 py-2 text-sm"
-                                            placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                                            value={idx === 0 ? option1 : idx === 1 ? option2 : idx === 2 ? option3 : option4}
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="label-text">Syllabus</label>
+                                        <select
+                                            value={questSyllabus}
                                             onChange={(e) => {
-                                                if (idx === 0) setOption1(e.target.value);
-                                                if (idx === 1) setOption2(e.target.value);
-                                                if (idx === 2) setOption3(e.target.value);
-                                                if (idx === 3) setOption4(e.target.value);
+                                                setQuestSyllabus(e.target.value as Syllabus);
+                                                setQuestGrade(''); // reset grade
+                                                setQuestSubject('');
                                             }}
-                                        />
+                                            disabled={(user as any)?.subscriptionLevel === 'single'}
+                                            className={`w-full p-2.5 rounded-xl border-2 border-brand-dark/10 font-bold text-sm ${(user as any)?.subscriptionLevel === 'single' ? 'bg-gray-100 opacity-60' : 'bg-white'}`}
+                                        >
+                                            <option value="">Select Syllabus</option>
+                                            {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="label-text">Grade</label>
+                                            <select
+                                                value={questGrade}
+                                                onChange={(e) => {
+                                                    setQuestGrade(e.target.value as GradeLevel);
+                                                    setQuestSubject('');
+                                                }}
+                                                disabled={!questSyllabus}
+                                                className={`w-full p-2.5 rounded-xl border-2 border-brand-dark/10 font-bold text-sm ${!questSyllabus ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white'}`}
+                                            >
+                                                <option value="">Grade</option>
+                                                {/* (Keep existing grade mapping logic) */}
+                                                {questSyllabus === 'Unified Examination Certificate (UEC)'
+                                                    ? [GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3, GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6].map(g => <option key={g} value={g}>{g}</option>)
+                                                    : questSyllabus === 'Malaysian National Curriculum (KSSR/KSSM)'
+                                                        ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3, GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6], ...[GradeLevel.FORM_1, GradeLevel.FORM_2, GradeLevel.FORM_3, GradeLevel.FORM_4, GradeLevel.FORM_5, GradeLevel.FORM_6]].map(g => <option key={g} value={g}>{g}</option>)
+                                                        : questSyllabus === 'Singapore MOE Syllabus (PSLE/O-Level)'
+                                                            ? [...[GradeLevel.STD_1, GradeLevel.STD_2, GradeLevel.STD_3, GradeLevel.STD_4, GradeLevel.STD_5, GradeLevel.STD_6], ...[GradeLevel.SEC_1, GradeLevel.SEC_2, GradeLevel.SEC_3, GradeLevel.SEC_4, GradeLevel.SEC_5]].map(g => <option key={g} value={g}>{g}</option>)
+                                                            : questSyllabus === 'Cambridge IGCSE' || questSyllabus === 'International Baccalaureate (IB)'
+                                                                ? [GradeLevel.YEAR_1, GradeLevel.YEAR_2, GradeLevel.YEAR_3, GradeLevel.YEAR_4, GradeLevel.YEAR_5, GradeLevel.YEAR_6, GradeLevel.YEAR_7, GradeLevel.YEAR_8, GradeLevel.YEAR_9, GradeLevel.YEAR_10, GradeLevel.YEAR_11, GradeLevel.YEAR_12, GradeLevel.YEAR_13].map(g => <option key={g} value={g}>{g}</option>)
+                                                                : Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)
+                                                }
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="label-text">Subject</label>
+                                            <select
+                                                value={questSubject}
+                                                onChange={(e) => setQuestSubject(e.target.value as Subject)}
+                                                disabled={!questGrade}
+                                                className={`w-full p-2.5 rounded-xl border-2 border-brand-dark/10 font-bold text-sm ${!questGrade ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'bg-white'}`}
+                                            >
+                                                <option value="">Subject</option>
+                                                {getSubjectsByGrade(questGrade, questSyllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
+                            </Card>
                         </div>
 
-                        <div>
-                            <label className="label-text">Explanation</label>
-                            <textarea
-                                className="input-field min-h-[80px] text-sm"
-                                placeholder="Explain why the answer is correct..."
-                                value={explanation}
-                                onChange={(e) => setExplanation(e.target.value)}
-                            />
-                        </div>
-
-                        <Button
-                            fullWidth
-                            variant={(!user?.isSubscribed && questions.length >= 1) ? "primary" : "secondary"}
-                            onClick={(!user?.isSubscribed && questions.length >= 1) ? onViewPricing : handleAddQuestion}
-                            className={(!user?.isSubscribed && questions.length >= 1) ? "bg-brand-orange hover:bg-orange-400" : ""}
-                        >
-                            {(!user?.isSubscribed && questions.length >= 1) ? (
-                                <><Sparkles className="mr-2" size={16} /> Upgrade for More Qs</>
-                            ) : (
-                                "Add Question"
-                            )}
-                        </Button>
-                    </Card>
-
-                    {/* Right: Added Questions Preview */}
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-xl text-brand-dark/60 uppercase tracking-widest text-sm">
-                            Questions ({questions.length})
-                        </h3>
-
-                        {questions.length === 0 ? (
-                            <div className="text-center p-8 border-2 border-dashed border-brand-dark/10 rounded-xl text-brand-dark/40">
-                                No questions added yet.
+                        {/* Section 2: Questions Preview List */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between text-brand-dark/40 mb-2">
+                                <div className="flex items-center gap-2">
+                                    <List size={14} className="uppercase tracking-widest" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">Question Stack</span>
+                                </div>
+                                <span className="text-[10px] font-bold bg-brand-blue/10 text-brand-blue px-2 py-0.5 rounded-full">{questions.length} Items</span>
                             </div>
-                        ) : (
-                            <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-                                {questions.map((q, idx) => (
-                                    <div key={q.id} className="bg-white p-4 rounded-xl shadow-sm border border-brand-dark/5 relative group">
-                                        <button
-                                            onClick={() => handleRemoveQuestion(idx)}
-                                            className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                        <div className="flex gap-3">
-                                            <span className="bg-brand-blue/10 text-brand-blue font-bold px-2 py-1 rounded-lg text-xs h-fit">
-                                                Q{idx + 1}
-                                            </span>
-                                            <div>
-                                                <p className="font-bold text-sm mb-2">{q.text}</p>
-                                                <div className="grid grid-cols-2 gap-2 text-xs text-brand-dark/70">
-                                                    {q.options.map((opt, i) => (
-                                                        <div key={i} className={`px-2 py-1 rounded ${i === q.correctAnswerIndex ? 'bg-green-100 text-green-700 font-bold' : 'bg-gray-50'}`}>
-                                                            {opt}
-                                                        </div>
-                                                    ))}
+
+                            <div className="space-y-3 max-h-[450px] overflow-y-auto custom-scrollbar pr-2 pb-10">
+                                {questions.length === 0 ? (
+                                    <div className="text-center p-8 border-2 border-dashed border-brand-dark/10 rounded-2xl bg-white/30 text-brand-dark/30">
+                                        <div className="mb-2 opacity-20 flex justify-center"><BookOpen size={30} /></div>
+                                        <p className="text-xs font-bold">Your questions will appear here as you add them.</p>
+                                    </div>
+                                ) : (
+                                    questions.map((q, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-brand-dark/5 relative group animate-pop-in">
+                                            <button
+                                                onClick={() => handleRemoveQuestion(idx)}
+                                                className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 p-1.5 rounded-lg shadow-sm"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <div className="flex gap-3">
+                                                <div className="flex-shrink-0 w-6 h-6 bg-brand-blue/10 text-brand-blue font-bold rounded-lg text-[10px] flex items-center justify-center">
+                                                    #{idx + 1}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-[13px] text-brand-dark leading-tight mb-2 truncate">{q.text}</p>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <CheckCircle2 size={12} className="text-brand-green" />
+                                                        <span className="text-[11px] font-bold text-brand-green truncate">{q.options[q.correctAnswerIndex]}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
-                        )}
+                        </div>
+                    </div>
+
+                    {/* Right Column: Question Content Creation */}
+                    <div className="lg:col-span-8">
+                        <div className="flex items-center gap-2 text-brand-dark/40 mb-4">
+                            <Sparkles size={14} className="uppercase tracking-widest" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Content Creator</span>
+                        </div>
+
+                        <Card className="p-8 space-y-8 bg-white border-brand-dark/5 shadow-xl relative overflow-hidden">
+                            {/* Question Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-brand-dark/60 uppercase tracking-widest">Question Text</label>
+                                    {currentQText.length > 0 && <span className="text-[10px] font-bold text-brand-blue">{currentQText.length} characters</span>}
+                                </div>
+                                <textarea
+                                    className="w-full p-5 rounded-2xl border-2 border-brand-dark/10 focus:border-brand-blue focus:outline-none font-bold text-lg min-h-[140px] shadow-inner bg-gray-50/30 transition-all resize-none"
+                                    placeholder="Write your brilliant question here..."
+                                    value={currentQText}
+                                    onChange={(e) => setCurrentQText(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Options Section */}
+                            <div className="space-y-4">
+                                <label className="text-sm font-bold text-brand-dark/60 uppercase tracking-widest flex items-center gap-2">
+                                    Multiple Choice Options <Info size={14} className="opacity-40" />
+                                </label>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[option1, option2, option3, option4].map((opt, idx) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => setCorrectIndex(idx)}
+                                            className={`relative group cursor-pointer p-1 rounded-2xl border-2 transition-all duration-300 ${correctIndex === idx ? 'border-brand-green bg-green-50 shadow-md transform scale-[1.02]' : 'border-transparent bg-gray-50/50 hover:bg-white hover:border-brand-dark/10'}`}
+                                        >
+                                            <div className="absolute -top-3 -right-3 z-10 transition-transform duration-300 transform scale-0 group-hover:scale-100" style={{ transform: correctIndex === idx ? 'scale(1)' : undefined }}>
+                                                {correctIndex === idx ? (
+                                                    <div className="bg-brand-green text-white p-1 rounded-full shadow-lg border-2 border-white"><CheckCircle2 size={16} /></div>
+                                                ) : (
+                                                    <div className="bg-white text-brand-dark/20 p-1 rounded-full shadow-sm border-2 border-brand-dark/5 group-hover:text-brand-green"><CheckCircle size={16} /></div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-center gap-4 p-4">
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm transition-colors ${correctIndex === idx ? 'bg-brand-green text-white' : 'bg-brand-dark/5 text-brand-dark/30'}`}>
+                                                    {String.fromCharCode(65 + idx)}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-transparent font-bold text-brand-dark placeholder:text-brand-dark/20 focus:outline-none"
+                                                    placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                                                    value={idx === 0 ? option1 : idx === 1 ? option2 : idx === 2 ? option3 : option4}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (idx === 0) setOption1(val);
+                                                        if (idx === 1) setOption2(val);
+                                                        if (idx === 2) setOption3(val);
+                                                        if (idx === 3) setOption4(val);
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Explanation Section */}
+                            <div className="space-y-4">
+                                <label className="text-sm font-bold text-brand-dark/60 uppercase tracking-widest">Explanation (Optional)</label>
+                                <textarea
+                                    className="w-full p-4 rounded-xl border-2 border-brand-dark/10 focus:border-brand-blue focus:outline-none font-medium text-sm min-h-[100px] bg-gray-50/30 shadow-inner"
+                                    placeholder="Explain why the answer is correct..."
+                                    value={explanation}
+                                    onChange={(e) => setExplanation(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                                <Button
+                                    fullWidth
+                                    size="lg"
+                                    variant={(!user?.isSubscribed && questions.length >= 1) ? "primary" : "secondary"}
+                                    onClick={(!user?.isSubscribed && questions.length >= 1) ? onViewPricing : handleAddQuestion}
+                                    className={`py-6 text-lg font-bold shadow-lg transition-all ${(!user?.isSubscribed && questions.length >= 1) ? "bg-brand-orange hover:bg-orange-400 shadow-brand-orange/20" : "bg-brand-blue hover:bg-blue-600 shadow-brand-blue/20"}`}
+                                >
+                                    {(!user?.isSubscribed && questions.length >= 1) ? (
+                                        <><Sparkles className="mr-2" /> Upgrade for Unlimited Questions</>
+                                    ) : (
+                                        <><Plus className="mr-2" /> Add Question to Quest</>
+                                    )}
+                                </Button>
+                            </div>
+                        </Card>
                     </div>
                 </div>
 
                 <style>{`
             .label-text {
-                @apply block text-xs font-bold text-brand-dark/60 uppercase mb-2;
+                @apply block text-xs font-bold text-brand-dark/60 uppercase mb-2 ml-1;
             }
-            .input-field {
-                @apply w-full p-3 rounded-xl border-2 border-brand-dark/10 focus:border-brand-blue focus:outline-none font-medium transition-colors;
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                @apply bg-brand-dark/10 rounded-full;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                @apply bg-brand-dark/20;
+            }
+            @keyframes pop-in {
+                0% { transform: scale(0.95); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            .animate-pop-in {
+                animation: pop-in 0.3s ease-out forwards;
             }
         `}</style>
             </div>
         );
     }
+
 
     const creationLimit = !user?.isSubscribed ? 1 : Infinity;
     const canCreate = quests.length < creationLimit;
