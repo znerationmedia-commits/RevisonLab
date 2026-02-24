@@ -4,8 +4,6 @@ import { Button } from './Button';
 import { ArrowLeft, LogIn, Mail, Loader2, KeyRound, ShieldCheck, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
-
 interface LoginModalProps {
     onClose: () => void;
 }
@@ -96,7 +94,7 @@ export const LoginModal = ({ onClose }: LoginModalProps) => {
         if (!validateEmail(fpEmail)) { setFpError('Please enter a valid email address.'); return; }
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+            const res = await fetch('/api/auth/forgot-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: fpEmail })
@@ -117,7 +115,7 @@ export const LoginModal = ({ onClose }: LoginModalProps) => {
         if (!fpOtp || fpOtp.length !== 6) { setFpError('Please enter the 6-digit code.'); return; }
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/auth/verify-reset-otp`, {
+            const res = await fetch('/api/auth/verify-reset-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: fpEmail, otp: fpOtp })
@@ -139,7 +137,7 @@ export const LoginModal = ({ onClose }: LoginModalProps) => {
         if (fpNewPassword !== fpConfirmPassword) { setFpError('Passwords do not match.'); return; }
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/auth/reset-password`, {
+            const res = await fetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ resetToken: fpResetToken, newPassword: fpNewPassword })

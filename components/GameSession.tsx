@@ -88,7 +88,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
         <div className="flex items-center gap-4">
           <div className="bg-brand-cream px-4 py-2 rounded-xl font-bold text-brand-orange flex items-center gap-2 animate-bounce-sm">
             <Coins className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-            <span>{score}</span>
+            <span>{correctAnswersCount} coin{correctAnswersCount !== 1 ? 's' : ''}</span>
           </div>
           <div className="bg-brand-cream px-4 py-2 rounded-xl font-bold text-brand-green">
             Streak: {streak} 🔥
