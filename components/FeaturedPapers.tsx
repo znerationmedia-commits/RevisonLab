@@ -70,9 +70,6 @@ export const FeaturedPapers: React.FC<{ onQuickStart: (paper: FeaturedPaper) => 
                                 <div className="text-xs font-bold bg-white/50 px-2 py-1 rounded-lg uppercase tracking-wider text-brand-dark/40">
                                     {paper.year}
                                 </div>
-                                <div className="text-[10px] font-bold bg-brand-orange text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                                    Coming Soon
-                                </div>
                             </div>
                         </div>
 

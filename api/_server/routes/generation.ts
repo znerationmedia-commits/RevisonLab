@@ -161,9 +161,92 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
     console.log(`[GEN] Request: ${subject} / ${grade} / ${topic || 'Full Paper'} / ${syllabus} ${isPastYear ? `(Past Year ${year})` : ''}`);
 
-    if (isMockMode()) {
-        return res.json(generateMockQuestions(subject, grade, topic, syllabus));
+    // Check API Key
+    if (!process.env.GEMINI_API_KEY) {
+        console.error("❌ [GEN] GEMINI_API_KEY is MISSING in environment.");
+        return res.status(500).json({
+            error: "Gemini API Key is missing. Please add it to your .env file or Vercel environment variables.",
+            instruction: "Go to https://aistudio.google.com/app/apikey to get a new key."
+        });
     }
+
+    if (isMockMode()) {
+        console.warn("⚠️ [GEN] AI_MOCK_MODE is ON. But user requested real questions. Stopping here to prevent mock data.");
+        return res.status(403).json({ error: "Mock mode is enabled in .env but real questions were requested." });
+    }
+
+    // ─── PAST YEAR: STRICT QuestionBank requirement ───────────────────
+    if (isPastYear && year) {
+        try {
+            const parsedYear = parseInt(String(year).split(' ')[0], 10);
+            if (!isNaN(parsedYear)) {
+                // Smart Matching: Extract key acronyms (KSSR, KSSM, IGCSE, SPM, etc.)
+                const acronyms = (syllabus.match(/\b(KSSR|KSSM|IGCSE|SPM|UPSR|PT3|STPM|IB)\b/gi) || [])
+                    .map(a => a.toUpperCase());
+
+                const sKeywords = syllabus.split('(')[0].trim();
+
+                // Grade Normalization: Standard 1 <-> Year 1 <-> Grade 1
+                const gradeMatch = grade.match(/\d+/);
+                const gradeNum = gradeMatch ? gradeMatch[0] : null;
+                const gradeVariations = gradeNum ? [
+                    `Standard ${gradeNum}`,
+                    `Year ${gradeNum}`,
+                    `Grade ${gradeNum}`,
+                    `Form ${gradeNum}`,
+                    grade
+                ] : [grade];
+
+                const realQuestions = await prisma.questionBank.findMany({
+                    where: {
+                        subject,
+                        grade: { in: gradeVariations },
+                        year: parsedYear,
+                        OR: [
+                            { syllabus: { contains: sKeywords, mode: 'insensitive' } },
+                            { syllabus: syllabus },
+                            ...acronyms.map(a => ({ syllabus: { contains: a, mode: 'insensitive' } }))
+                        ]
+                    },
+                    orderBy: { createdAt: 'asc' },
+                });
+
+                if (realQuestions.length > 0) {
+                    console.log(`✅ [GEN] Found ${realQuestions.length} real QuestionBank questions for ${subject}/${grade}/${parsedYear} (Variations: ${gradeVariations.join(', ')})`);
+
+                    const formatted = realQuestions.map((q: any) => {
+                        let options: string[] = [];
+                        try { options = JSON.parse(q.options); } catch { options = ['A', 'B', 'C', 'D']; }
+                        const letterMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+                        const correctAnswerIndex = letterMap[q.correctAnswer?.toUpperCase()] ?? 0;
+
+                        return {
+                            id: `real-${q.id}`,
+                            text: q.question,
+                            options,
+                            correctAnswerIndex,
+                            explanation: q.explanation || 'No explanation provided.',
+                            source: q.source || `${subject} ${year}`,
+                            isRealQuestion: true,
+                        };
+                    });
+
+                    // Return all found questions (max 50 to keep it manageable but satisfying)
+                    return res.json(formatted.sort(() => Math.random() - 0.5).slice(0, 50));
+                } else {
+                    console.warn(`❌ [GEN] No Questions Found in Bank for ${subject} ${grade} ${parsedYear}.`);
+                    return res.status(404).json({
+                        error: "No questions found in the official bank for this year.",
+                        instruction: "Administrator: Please use the 'AI Generate & Import' tool in the Admin Dashboard to add these questions."
+                    });
+                }
+            }
+        } catch (dbErr: any) {
+            console.error(`❌ [GEN] DB lookup failed: ${dbErr.message}`);
+            return res.status(500).json({ error: "Failed to retrieve questions from database." });
+        }
+    }
+
 
     try {
         // PURE AI GENERATION - Skip database entirely
@@ -172,19 +255,46 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
         let prompt = "";
         if (isPastYear) {
-            prompt = `Generate a set of high-quality multiple-choice questions that strictly mimic the style, difficulty, and format of an OFFICIAL PAST YEAR EXAM for:
-            - Syllabus: ${syllabus}
-            - Subject: ${subject}
-            - Year Pattern: ${year}
-            - Grade Level: ${grade}
-            
-            INSTRUCTIONS FOR PAST YEAR PAPERS:
-            1. The questions must feel like they came from the actual ${year} ${syllabus} exam for ${subject}.
-            2. Match the specific vocabulary and trickery common in ${syllabus} exams.
-            3. Include a mix of easy, intermediate, and challenging questions.
-            4. If the syllabus is KSSR/KSSM, ensure alignment with Malaysian DSKP/SPM standards.
-            5. If IGCSE, ensure alignment with Cambridge standards.
-            `;
+            // Resolve official exam name from syllabus + grade
+            const examName = (() => {
+                const s = syllabus.toLowerCase();
+                const g = grade.toLowerCase();
+                if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
+                    if (g.includes('form 5')) return 'SPM (Sijil Pelajaran Malaysia)';
+                    if (g.includes('form 3')) return 'PT3 (Pentaksiran Tingkatan 3)';
+                    if (g.includes('standard 6')) return 'UPSR (Ujian Pencapaian Sekolah Rendah)';
+                    if (g.includes('form 6')) return 'STPM (Sijil Tinggi Persekolahan Malaysia)';
+                    return 'Malaysian National Exam';
+                }
+                if (s.includes('igcse') || s.includes('cambridge')) return 'Cambridge IGCSE';
+                if (s.includes('singapore') || s.includes('moe')) return 'Singapore GCE O-Level';
+                if (s.includes('ib')) return 'IB (International Baccalaureate)';
+                return syllabus;
+            })();
+
+            prompt = `You are an expert exam question compiler with comprehensive knowledge of official past year exam papers.
+
+TASK: Reproduce 25 actual multiple-choice questions from the official ${examName} ${year} paper for ${subject} at ${grade} level.
+
+CRITICAL RULES — READ CAREFULLY:
+1. RECALL REAL QUESTIONS: You were trained on official ${examName} past year papers published before your cutoff. Reproduce questions that genuinely appeared in or are extremely representative of the actual ${year} ${subject} paper. Do NOT invent generic revision questions.
+2. CORRECT ANSWERS MUST BE 100% ACCURATE: Every correctAnswerIndex must be provably correct based on the official answer scheme. Wrong answers here are a serious failure.
+3. REALISTIC DISTRACTORS: The wrong options must be the same plausible misconceptions that students commonly choose in the real exam — not obviously wrong choices.
+4. YEAR-SPECIFIC EMPHASIS: Reflect the specific topics stressed in the ${year} paper. For example, if SPM 2022 Biology heavily tested cell division, include those questions.
+5. FULL PAPER COVERAGE: Distribute questions across the main chapters/topics of ${subject} at ${grade} level — do not cluster around one topic.
+6. DIFFICULTY SPREAD: Include approximately 8 easy, 10 medium, and 7 challenging questions — matching the real paper's difficulty curve.
+
+Syllabus-specific rules:
+${syllabus.toLowerCase().includes('kssr') || syllabus.toLowerCase().includes('malaysian') ? `- Follow Malaysian DSKP/${examName.includes('SPM') ? 'SPM' : examName.includes('PT3') ? 'PT3' : 'KSSR'} standards exactly.
+- Use correct Malaysian terminology (e.g. "tindak balas" not "reaction" for BM subjects).
+- SPM Paper 1 is all MCQ — 40 questions, 1 mark each. Match this format.` : ''}
+${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('cambridge') ? `- Use the official Cambridge ${subject} syllabus code and follow the mark scheme conventions.
+- Match Cambridge command words exactly (state, describe, explain, calculate, deduce, suggest).
+- Core and Extended tier questions should be mixed.` : ''}
+${syllabus.toLowerCase().includes('singapore') ? `- Follow Singapore MOE O-Level syllabus structure.
+- Match SEAB question phrasings and answer key conventions.` : ''}
+
+`;
         } else {
             prompt = `Generate a set of high-quality multiple-choice questions for:
             - Subject: ${subject}
@@ -200,15 +310,17 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
         prompt += `
         GENERAL QUALITY RULES:
-        1. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
-        2. Explanation Quality: Each explanation MUST be specific to the question. It must:
-           - Directly state WHY the correct answer is right (with the key fact or reason)
-           - Briefly explain why a common wrong choice is misleading (if applicable)
+        1. QUANTITY: Generate EXACTLY 25 questions. No fewer.
+        2. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
+        3. Explanation Quality: Each explanation MUST be specific to the question. It must:
+           - Directly state WHY the correct answer is right (cite the specific law, formula, fact, or rule)
+           - Briefly explain why a common wrong choice is misleading
            - Be 2-3 sentences maximum. Do NOT write generic study notes.
-           - Example of GOOD explanation: "The correct answer is chlorophyll because it is the pigment that absorbs light energy in plant cells. Option B (glucose) is wrong because glucose is the product of photosynthesis, not the light absorber."
+           - GOOD example: "The correct answer is chlorophyll because it is the pigment that absorbs light energy for photosynthesis. Option B (glucose) is wrong because glucose is the product of photosynthesis, not the absorber."
+           - BAD example: "This is an important topic in biology." — This is not acceptable.
 
         JSON SPECIFICATION:
-        Return ONLY a JSON object:
+        Return ONLY a valid JSON object with this exact structure:
         {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], "correctAnswerIndex": 0, "explanation": "..."}]}
         `;
 
@@ -251,12 +363,13 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
             console.log(`✅ [GEN] Generated ${formattedQuestions.length} questions with Gemini`);
             return res.json(formattedQuestions);
-        } catch (apiError: any) {
-            console.error(`❌ [GEN] Gemini API Error: ${apiError.message}`);
-            return res.json(generateMockQuestions(subject, grade, topic, syllabus));
+        } catch (error: any) {
+            console.error("❌ [GEN] Error:", error.message);
+            return res.status(500).json({
+                error: `AI Generation failed: ${error.message}`,
+                details: "Check your GEMINI_API_KEY in .env. If it's expired, you must renew it at Google AI Studio."
+            });
         }
-
-
     } catch (error: any) {
         console.error("❌ [GEN] Outer Error:", error.message);
         console.error(error.stack);
@@ -311,7 +424,10 @@ router.post('/syllabus', async (req, res) => {
             responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
         } catch (apiError: any) {
             console.error(`❌ [SYLLABUS] Gemini API Error: ${apiError.message}`);
-            return res.json(generateMockSyllabus());
+            return res.status(500).json({
+                error: `Syllabus generation failed: ${apiError.message}`,
+                instruction: "Please check your GEMINI_API_KEY in .env."
+            });
         }
 
         if (!responseText) {
@@ -328,12 +444,12 @@ router.post('/syllabus', async (req, res) => {
         } catch (e: any) {
             console.error(`❌ [SYLLABUS] JSON Critical Failure: ${e.message}`);
             console.log(`[SYLLABUS] Full Response for Debug: ${responseText}`);
-            return res.json(generateMockSyllabus());
+            return res.status(500).json({ error: "AI returned invalid JSON. Please try again." });
         }
 
         if (topics.length === 0) {
-            console.warn("⚠️ [SYLLABUS] No topics parsed, returning mock");
-            return res.json(generateMockSyllabus());
+            console.warn("⚠️ [SYLLABUS] No topics parsed");
+            return res.status(500).json({ error: "AI failed to generate topics." });
         }
 
         console.log(`✅ [SYLLABUS] Generated ${topics.length} topics with Gemini`);
@@ -349,8 +465,130 @@ router.post('/syllabus', async (req, res) => {
 
         return res.json(topics);
     } catch (error: any) {
-        console.error("❌ [SYLLABUS] Error:", error.message);
-        return res.json(generateMockSyllabus());
+        console.error("❌ [SYLLABUS] Unexpected Error:", error.message);
+        return res.status(500).json({ error: "Unexpected error during syllabus generation." });
+    }
+});
+
+router.post('/study-plan', authenticateToken, checkExpiredSubscriptions, async (req: AuthRequest, res) => {
+    const { subject, grade, syllabus, timeframe, hoursPerDay, goals } = req.body;
+    const userId = req.user?.id;
+
+    console.log(`[STUDY-PLAN] Request: ${subject} / ${grade} / ${syllabus} - ${timeframe} - ${hoursPerDay}h/day`);
+
+    if (userId) {
+        try {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+
+            // Check Limit reusing questsPlayed as a general AI generation count for now, 
+            // or we could let subscribers have unlimited. Let's apply the same check.
+            if (user && !user.isSubscribed && user.questsPlayed >= 5) { // Give a bit more leeway for study plans or use same limit
+                console.log(`[STUDY-PLAN] ❌ Limit reached for user ${userId}`);
+                return res.status(403).json({
+                    error: "Free AI generation limit reached. Upgrade to Pro for unlimited features!",
+                    code: "USER_LIMIT_REACHED"
+                });
+            }
+
+            // Increment Usage
+            if (user && !user.isSubscribed) {
+                await prisma.user.update({
+                    where: { id: userId },
+                    data: { questsPlayed: { increment: 1 } }
+                });
+            }
+        } catch (error) {
+            console.error("[STUDY-PLAN] Error checking/updating user limit:", error);
+            return res.status(500).json({ error: "Internal Server Error" });
+        }
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API Key is missing." });
+    }
+
+    if (isMockMode()) {
+        console.log(`✅ [STUDY-PLAN] Using mock mode`);
+        return res.json({
+            title: `Study Plan: ${subject} (${grade})`,
+            overview: "A mock study plan for testing.",
+            weeks: [
+                {
+                    weekNumber: 1,
+                    focus: "Foundational Concepts",
+                    tasks: ["Review Chapter 1", "Complete 10 practice questions", "Watch tutorial video"]
+                },
+                {
+                    weekNumber: 2,
+                    focus: "Advanced Applications",
+                    tasks: ["Take mock test 1", "Review mistakes", "Read Chapter 2"]
+                }
+            ],
+            tips: ["Stay hydrated", "Take short breaks"]
+        });
+    }
+
+    try {
+        console.log(`🤖 [STUDY-PLAN] Generating with Gemini...`);
+
+        const prompt = `Act as an expert academic tutor and create a highly effective, personalized study plan.
+        
+        STUDENT PROFILE:
+        - Subject: ${subject}
+        - Grade Level: ${grade}
+        - Syllabus/Curriculum: ${syllabus}
+        - Timeframe: ${timeframe}
+        - Daily Study Commitment: ${hoursPerDay} hours per day
+        - Additional Goals/Focus: ${goals || 'General mastery and exam preparation'}
+
+        INSTRUCTIONS:
+        1. Break the plan down logically into weeks (or phases if the timeframe is short like a few days).
+        2. Assign specific, actionable tasks for each period based on the official curriculum of the chosen syllabus.
+        3. Be realistic about what can be achieved in ${hoursPerDay} hours per day.
+        4. Include a general overview of the strategy.
+        5. Provide 3-5 actionable study tips specific to this subject and grade.
+
+        JSON SPECIFICATION:
+        Return ONLY a JSON object with the following exact structure:
+        {
+          "title": "A catchy title for the plan",
+          "overview": "A short paragraph explaining the overall strategy",
+          "weeks": [
+            {
+              "weekNumber": 1,
+              "focus": "Main topic/theme for the week",
+              "tasks": ["Task 1", "Task 2"]
+            }
+          ],
+          "tips": ["Tip 1", "Tip 2"]
+        }
+        `;
+
+        let responseText;
+        try {
+            responseText = await generateAIContent(prompt, "gemini-2.5-flash", "application/json");
+        } catch (apiError: any) {
+            console.error(`❌ [STUDY-PLAN] Gemini API Error: ${apiError.message}`);
+            return res.status(500).json({ error: `AI generation failed: ${apiError.message}` });
+        }
+
+        if (!responseText) {
+            return res.status(500).json({ error: "Empty response from AI" });
+        }
+
+        let planData;
+        try {
+            planData = superRepairJSON(responseText);
+        } catch (e: any) {
+            console.error(`❌ [STUDY-PLAN] JSON parse failed: ${e.message}`);
+            return res.status(500).json({ error: "AI returned invalid JSON." });
+        }
+
+        console.log(`✅ [STUDY-PLAN] Generated successfully`);
+        return res.json(planData);
+    } catch (error: any) {
+        console.error("❌ [STUDY-PLAN] Error:", error.message);
+        return res.status(500).json({ error: "Failed to generate study plan." });
     }
 });
 

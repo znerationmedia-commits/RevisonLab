@@ -89,7 +89,7 @@ const generateContent = async (subject: Subject, grade: GradeLevel, topic: strin
   } catch (error: any) {
     if (error.message === "QUOTA_EXCEEDED" || error.message === "USER_LIMIT_REACHED") throw error;
     console.error("Failed to fetch from server generation endpoint:", error);
-    return generateMockContent(subject, grade, topic, syllabus); // Fallback
+    throw error; // Stop falling back to mock data
   }
 };
 
@@ -113,11 +113,73 @@ const generateSyllabus = async (subject: Subject, grade: GradeLevel, syllabus: S
     return await response.json();
   } catch (error) {
     console.error("Syllabus fetch failed:", error);
-    return generateMockSyllabus(subject, grade, syllabus);
+    throw error;
+  }
+};
+
+export interface StudyPlanRequest {
+  subject: string;
+  grade: string;
+  syllabus: string;
+  timeframe: string;
+  hoursPerDay: string;
+  goals?: string;
+}
+
+export interface StudyPlanResponse {
+  title: string;
+  overview: string;
+  weeks: {
+    weekNumber: number | string;
+    focus: string;
+    tasks: string[];
+  }[];
+  tips: string[];
+}
+
+const generateStudyPlan = async (params: StudyPlanRequest): Promise<StudyPlanResponse> => {
+  if (isMockMode) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    return {
+      title: `Study Plan: ${params.subject} (${params.grade})`,
+      overview: "A mock study plan for testing.",
+      weeks: [
+        {
+          weekNumber: 1,
+          focus: "Foundational Concepts",
+          tasks: ["Review Chapter 1", "Complete 10 practice questions"]
+        }
+      ],
+      tips: ["Stay hydrated", "Take short breaks"]
+    };
+  }
+
+  try {
+    const token = localStorage.getItem('quest_token');
+    const response = await fetch('/api/generate/study-plan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      if (response.status === 403 && err.code === 'USER_LIMIT_REACHED') throw new Error("USER_LIMIT_REACHED");
+      throw new Error(err.error || 'Failed to generate study plan');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Study plan generation failed:", error);
+    throw error;
   }
 };
 
 export const geminiService = {
   generateContent,
-  generateSyllabus
+  generateSyllabus,
+  generateStudyPlan
 };

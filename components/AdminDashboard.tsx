@@ -18,7 +18,11 @@ import {
     Search,
     Filter,
     MoreVertical,
-    Clock
+    Clock,
+    Database,
+    Upload,
+    Sparkles,
+    Zap
 } from 'lucide-react';
 
 interface AdminStats {

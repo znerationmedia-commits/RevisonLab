@@ -11,8 +11,17 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:5000',
-          changeOrigin: true,
-          secure: false
+          changeOrigin: false,
+          secure: false,
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              // Ensure Authorization header is forwarded
+              const auth = (req as any).headers?.authorization;
+              if (auth) {
+                proxyReq.setHeader('authorization', auth);
+              }
+            });
+          }
         }
       }
     },

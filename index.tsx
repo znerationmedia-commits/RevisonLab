@@ -9,13 +9,16 @@ if (!rootElement) {
 }
 
 import { AuthProvider } from './contexts/AuthContext';
+import { BrowserRouter } from 'react-router-dom';
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-      <Analytics />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+        <Analytics />
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

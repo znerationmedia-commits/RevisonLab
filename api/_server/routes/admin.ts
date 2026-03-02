@@ -1,5 +1,6 @@
 import express from 'express';
 import prisma from '../db.js';
+import { generateAIContent } from '../utils/ai.js';
 import { authenticateToken, AuthRequest } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -76,7 +77,6 @@ router.get('/users', async (_req, res) => {
             orderBy: { xp: 'desc' }
         });
 
-        // Add calculated stats
         const usersWithStats = users.map(u => {
             const totalQ = u.results.reduce((sum, r) => sum + r.totalQuestions, 0);
             const totalC = u.results.reduce((sum, r) => sum + r.correctAnswers, 0);
@@ -88,7 +88,7 @@ router.get('/users', async (_req, res) => {
                 totalCorrect: totalC,
                 accuracy: totalQ ? Math.round((totalC / totalQ) * 100) : 0,
                 subjectsDone: subjects,
-                results: undefined // Clear raw results
+                results: undefined
             };
         });
 
@@ -113,7 +113,6 @@ router.get('/users/:userId/performance', async (req, res) => {
             }
         });
 
-        // Group by day (YYYY-MM-DD)
         const dailyStats: Record<string, { answered: number, correct: number }> = {};
 
         results.forEach(r => {
@@ -219,6 +218,251 @@ router.patch('/redemptions/:id', async (req, res) => {
         res.json(redemption);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update redemption' });
+    }
+});
+
+// ─── QUESTION BANK MANAGEMENT ────────────────────────────────────────────────
+
+// Helpers
+const resolveExamName = (syllabus: string, grade: string): string => {
+    const s = syllabus.toLowerCase();
+    const g = grade.toLowerCase();
+    if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
+        if (g.includes('form 5')) return 'SPM (Sijil Pelajaran Malaysia)';
+        if (g.includes('form 3')) return 'PT3 (Pentaksiran Tingkatan 3)';
+        if (g.includes('standard 6')) return 'UPSR (Ujian Pencapaian Sekolah Rendah)';
+        if (g.includes('form 6')) return 'STPM (Sijil Tinggi Persekolahan Malaysia)';
+        return 'Malaysian National Exam';
+    }
+    if (s.includes('igcse') || s.includes('cambridge')) return 'Cambridge IGCSE';
+    if (s.includes('singapore') || s.includes('moe')) return 'Singapore GCE O-Level';
+    if (s.includes('ib')) return 'IB (International Baccalaureate)';
+    return syllabus;
+};
+
+const repairJSON = (text: string): any => {
+    let cleaned = text.trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/) || cleaned.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+        cleaned = jsonMatch[0];
+    } else {
+        const start = cleaned.indexOf('{') !== -1 ? cleaned.indexOf('{') : cleaned.indexOf('[');
+        if (start !== -1) cleaned = cleaned.substring(start);
+        else throw new Error('No JSON found in response');
+    }
+    const stack: string[] = [];
+    let inStr = false, esc = false;
+    for (const char of cleaned) {
+        if (esc) { esc = false; continue; }
+        if (char === '\\') { esc = true; continue; }
+        if (char === '"') { inStr = !inStr; continue; }
+        if (!inStr) {
+            if (char === '{' || char === '[') stack.push(char);
+            else if (char === '}' || char === ']') stack.pop();
+        }
+    }
+    if (inStr) cleaned += '"';
+    while (stack.length) cleaned += stack.pop() === '{' ? '}' : ']';
+    return JSON.parse(cleaned);
+};
+
+// ⚠️ IMPORTANT: /question-bank/ai-generate MUST come BEFORE /question-bank to avoid Express swallowing it
+// POST /api/admin/question-bank/ai-generate — AI auto-generate & save questions
+router.post('/question-bank/ai-generate', async (req, res) => {
+    const { syllabus, grade, subject, year, count = 25 } = req.body;
+
+    if (!syllabus || !grade || !subject || !year) {
+        return res.status(400).json({ error: 'syllabus, grade, subject, and year are required' });
+    }
+
+    const parsedYear = parseInt(String(year), 10);
+    if (isNaN(parsedYear)) {
+        return res.status(400).json({ error: 'year must be a valid number' });
+    }
+
+    const examName = resolveExamName(syllabus, grade);
+    const numQ = Math.min(Math.max(parseInt(String(count), 10) || 25, 5), 40);
+
+    const prompt = `You are an expert exam question compiler with comprehensive knowledge of official past year exam papers.
+
+TASK: Generate ${numQ} multiple-choice questions representative of the official ${examName} ${parsedYear} paper for ${subject} at ${grade} level.
+
+REQUIREMENTS:
+1. Each question must have exactly 4 options as full answer text (not just A/B/C/D labels).
+2. correctAnswer must be EXACTLY one of: "A", "B", "C", or "D".
+3. Include the topic/chapter name for each question.
+4. Include a 2-3 sentence explanation for each answer.
+5. Include difficulty: "Easy", "Medium", or "Hard".
+6. Include source like "${subject} ${examName} ${parsedYear} Paper 1".
+7. Cover diverse topics from the full ${subject} syllabus.
+8. Difficulty spread: ~30% Easy, ~45% Medium, ~25% Hard.
+9. THE RESPONSE MUST BE EXACTLY ${numQ} QUESTIONS. DO NOT RETURN FEWER.
+${syllabus.toLowerCase().includes('kssr') || syllabus.toLowerCase().includes('kssm') || syllabus.toLowerCase().includes('malaysian') ? '10. Follow Malaysian DSKP standard terminology.' : ''}
+${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('cambridge') ? '10. Follow Cambridge syllabus. Use command words: state, describe, explain, calculate, suggest.' : ''}
+
+Return ONLY a valid JSON object (no other text):
+{
+  "questions": [
+    {
+      "question": "Full question text?",
+      "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+      "correctAnswer": "A",
+      "topic": "Chapter/topic name",
+      "difficulty": "Medium",
+      "explanation": "Why the answer is correct...",
+      "source": "${subject} ${examName} ${parsedYear}"
+    }
+  ]
+}`;
+
+    try {
+        console.log(`🤖 [QB-AI] Generating ${numQ} questions for ${syllabus}/${grade}/${subject}/${parsedYear}`);
+        const responseText = await generateAIContent(prompt, 'gemini-2.5-flash', 'application/json');
+
+        if (!responseText) {
+            return res.status(500).json({ error: 'AI returned empty response. Please try again.' });
+        }
+
+        let parsed: any;
+        try {
+            parsed = repairJSON(responseText);
+        } catch (e: any) {
+            console.error('[QB-AI] JSON parse failure:', e.message);
+            return res.status(500).json({ error: 'AI returned malformed JSON. Please try again.' });
+        }
+
+        const rawQuestions: any[] = parsed.questions || (Array.isArray(parsed) ? parsed : []);
+        if (rawQuestions.length < Math.min(numQ, 5)) {
+            return res.status(500).json({ error: `AI returned too few questions (${rawQuestions.length}/${numQ}). Please try again.` });
+        }
+
+        const created = await prisma.$transaction(
+            rawQuestions.map((q: any) =>
+                prisma.questionBank.create({
+                    data: {
+                        subject,
+                        grade,
+                        syllabus,
+                        year: parsedYear,
+                        topic: q.topic || 'General',
+                        subtopic: q.subtopic || null,
+                        question: q.question || q.text || '',
+                        options: JSON.stringify(Array.isArray(q.options) ? q.options : ['A', 'B', 'C', 'D']),
+                        correctAnswer: String(q.correctAnswer || 'A').toUpperCase().charAt(0),
+                        explanation: q.explanation || '',
+                        difficulty: q.difficulty || 'Medium',
+                        source: q.source || `${subject} ${examName} ${parsedYear}`,
+                    },
+                })
+            )
+        );
+
+        console.log(`✅ [QB-AI] Saved ${created.length} questions to QuestionBank`);
+        res.json({ uploaded: created.length, message: `Successfully generated and imported ${created.length} questions!` });
+    } catch (error: any) {
+        console.error('[QB-AI] Error:', error);
+        res.status(500).json({ error: 'AI generation failed', details: error.message });
+    }
+});
+
+// POST /api/admin/question-bank — upload single question or bulk array (manual JSON)
+router.post('/question-bank', async (req, res) => {
+    try {
+        const { syllabus, grade, subject, year, questions } = req.body;
+
+        if (!syllabus || !grade || !subject || !year) {
+            return res.status(400).json({ error: 'syllabus, grade, subject, and year are required' });
+        }
+
+        const parsedYear = parseInt(String(year), 10);
+        if (isNaN(parsedYear)) {
+            return res.status(400).json({ error: 'year must be a valid number' });
+        }
+
+        const rawList: any[] = Array.isArray(questions) ? questions : [questions];
+
+        if (!rawList.length) {
+            return res.status(400).json({ error: 'No questions provided' });
+        }
+
+        const created = await prisma.$transaction(
+            rawList.map((q: any) =>
+                prisma.questionBank.create({
+                    data: {
+                        subject,
+                        grade,
+                        syllabus,
+                        year: parsedYear,
+                        topic: q.topic || 'General',
+                        subtopic: q.subtopic || null,
+                        question: q.question,
+                        options: JSON.stringify(q.options),
+                        correctAnswer: q.correctAnswer,
+                        explanation: q.explanation || '',
+                        difficulty: q.difficulty || 'Medium',
+                        source: q.source || null,
+                    },
+                })
+            )
+        );
+
+        console.log(`[QB] ✅ Uploaded ${created.length} questions for ${syllabus} / ${grade} / ${subject} / ${parsedYear}`);
+        res.json({ uploaded: created.length, ids: created.map((q) => q.id) });
+    } catch (error: any) {
+        console.error('[QB] Upload error:', error);
+        res.status(500).json({ error: 'Failed to upload questions', details: error.message });
+    }
+});
+
+// GET /api/admin/question-bank — list questions with optional filters
+router.get('/question-bank', async (req, res) => {
+    try {
+        const { syllabus, grade, subject, year } = req.query as Record<string, string>;
+        const where: any = {};
+        if (syllabus) where.syllabus = syllabus;
+        if (grade) where.grade = grade;
+        if (subject) where.subject = subject;
+        if (year) where.year = parseInt(year, 10);
+
+        const questions = await prisma.questionBank.findMany({
+            where,
+            orderBy: [{ year: 'desc' }, { createdAt: 'desc' }],
+        });
+
+        res.json(questions);
+    } catch (error: any) {
+        console.error('[QB] List error:', error);
+        res.status(500).json({ error: 'Failed to fetch questions' });
+    }
+});
+
+// DELETE /api/admin/question-bank/:id — delete a single question
+router.delete('/question-bank/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.questionBank.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[QB] Delete error:', error);
+        res.status(500).json({ error: 'Failed to delete question' });
+    }
+});
+
+// DELETE /api/admin/question-bank — delete ALL questions matching a filter (bulk delete)
+router.delete('/question-bank', async (req, res) => {
+    const { syllabus, grade, subject, year } = req.query as Record<string, string>;
+    try {
+        const where: any = {};
+        if (syllabus) where.syllabus = syllabus;
+        if (grade) where.grade = grade;
+        if (subject) where.subject = subject;
+        if (year) where.year = parseInt(year, 10);
+
+        const result = await prisma.questionBank.deleteMany({ where });
+        res.json({ deleted: result.count });
+    } catch (error: any) {
+        console.error('[QB] Bulk delete error:', error);
+        res.status(500).json({ error: 'Failed to bulk delete questions' });
     }
 });
 
