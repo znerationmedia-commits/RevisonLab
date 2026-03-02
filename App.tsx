@@ -1019,7 +1019,7 @@ export default function App() {
       />
 
       {/* Quick Access Cards */}
-      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 -mt-10 relative z-20">
+      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 relative z-20">
         {/* Teacher Dashboard Mini-Card */}
         <Card className="p-6 border-2 border-brand-dark/5 bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden group shadow-xl">
           <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transition-transform group-hover:scale-110">
@@ -1072,34 +1072,6 @@ export default function App() {
               }}
             >
               <Coins size={14} className="mr-1.5" /> Visit Shop
-            </Button>
-          </div>
-        </Card>
-
-        {/* Community Mini-Card */}
-        <Card className="p-6 border-2 border-brand-dark/5 bg-gradient-to-br from-green-50 to-teal-50 relative overflow-hidden group shadow-xl">
-          <div className="absolute -right-4 -bottom-4 opacity-5 pointer-events-none transition-transform group-hover:scale-110">
-            <UserIcon size={120} />
-          </div>
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white mb-4 shadow-md group-hover:shadow-lg transition-transform group-hover:-translate-y-1">
-              <UserIcon size={20} />
-            </div>
-            <h3 className="font-bold text-brand-dark mb-1">Community</h3>
-            <p className="text-xs text-brand-dark/60 mb-6 flex-1">
-              Connect with other learners, share tips, and compete.
-            </p>
-            <Button
-              variant="primary"
-              size="sm"
-              fullWidth
-              className="bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20"
-              onClick={() => {
-                if (!user) setShowLoginModal(true);
-                else navigate('/community');
-              }}
-            >
-              View Community
             </Button>
           </div>
         </Card>
