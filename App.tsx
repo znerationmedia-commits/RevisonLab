@@ -1197,9 +1197,14 @@ export default function App() {
               <Card className="p-8 md:p-10 flex flex-col items-center gap-8 border-2 border-brand-dark/5 shadow-xl relative bg-white rounded-3xl group hover:border-brand-orange/20 transition-all">
                 <div className="text-center space-y-3">
                   <h3 className="font-display font-bold text-3xl text-brand-dark">Single Syllabus</h3>
-                  <div className="text-5xl font-display font-bold text-brand-dark">
-                    {currencyConfig.symbol} {currencyConfig.amount}
-                    <span className="text-lg font-normal opacity-40">/mo</span>
+                  <div className="text-5xl font-display font-bold text-brand-dark flex flex-col items-center">
+                    <span className="text-2xl text-brand-dark/40 line-through mb-1">
+                      {currencyConfig.symbol} {currencyConfig.code === 'MYR' ? '29.9' : (currencyConfig.amount + 13).toFixed(1)}
+                    </span>
+                    <div>
+                      {currencyConfig.symbol} {currencyConfig.amount}
+                      <span className="text-lg font-normal opacity-40">/mo</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1248,9 +1253,14 @@ export default function App() {
 
                 <div className="text-center space-y-3">
                   <h3 className="font-display font-bold text-3xl text-brand-dark">All Syllabus</h3>
-                  <div className="text-5xl font-display font-bold text-brand-dark">
-                    {currencyConfig.symbol} {currencyConfig.amountAll}
-                    <span className="text-lg font-normal opacity-40">/mo</span>
+                  <div className="text-5xl font-display font-bold text-brand-dark flex flex-col items-center">
+                    <span className="text-2xl text-brand-dark/40 line-through mb-1">
+                      {currencyConfig.symbol} {currencyConfig.code === 'MYR' ? '39.9' : (currencyConfig.amountAll + 20).toFixed(1)}
+                    </span>
+                    <div>
+                      {currencyConfig.symbol} {currencyConfig.amountAll}
+                      <span className="text-lg font-normal opacity-40">/mo</span>
+                    </div>
                   </div>
                 </div>
 
