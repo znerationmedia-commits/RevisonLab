@@ -55,6 +55,7 @@ interface Reward {
     description: string | null;
     coinCost: number;
     icon: string | null;
+    imageUrl: string | null;
     stock: number | null;
     isActive: boolean;
 }
@@ -98,6 +99,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
     const [showRewardModal, setShowRewardModal] = useState(false);
     const [editingReward, setEditingReward] = useState<Reward | null>(null);
+    const [rewardImageUrl, setRewardImageUrl] = useState<string | null>(null);
 
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
@@ -151,6 +153,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         fetchUserPerformance(user.id);
     };
 
+    const handleRewardImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 50 * 1024 * 1024) {
+            showToast('Image must be under 50MB', 'error');
+            e.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => setRewardImageUrl(reader.result as string);
+        reader.readAsDataURL(file);
+    };
+
     const handleSaveReward = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -159,6 +174,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             description: formData.get('description'),
             coinCost: parseInt(formData.get('coinCost') as string),
             icon: formData.get('icon'),
+            imageUrl: rewardImageUrl ?? editingReward?.imageUrl ?? null,
             stock: formData.get('stock') ? parseInt(formData.get('stock') as string) : null,
             isActive: true
         };
@@ -175,6 +191,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                 showToast(`Reward ${editingReward ? 'updated' : 'created'} successfully`, 'success');
                 setShowRewardModal(false);
                 setEditingReward(null);
+                setRewardImageUrl(null);
                 fetchData();
             } else {
                 showToast('Failed to save reward', 'error');
@@ -190,7 +207,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             const res = await fetch(`${API_BASE}/rewards/${id}`, { method: 'DELETE', headers });
             if (res.ok) {
                 showToast('Reward deleted', 'success');
-                fetchData();
+                setRewards(prev => prev.filter(r => r.id !== id));
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.error || 'Failed to delete reward', 'error');
             }
         } catch {
             showToast('Error deleting reward', 'error');
@@ -333,7 +353,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                 {rewards.map(r => (
                     <div key={r.id} className="bg-white p-6 rounded-3xl border border-brand-dark/5 shadow-sm relative group">
                         <div className="flex justify-between mb-4">
-                            <span className="text-4xl">{r.icon || '🎁'}</span>
+                            {r.imageUrl
+                                ? <img src={r.imageUrl} alt={r.title} className="w-16 h-16 object-cover rounded-2xl shadow" />
+                                : <span className="text-4xl">{r.icon || '🎁'}</span>
+                            }
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onClick={() => { setEditingReward(r); setShowRewardModal(true); }} className="p-2 hover:bg-brand-dark/5 rounded-lg text-brand-dark/40 hover:text-brand-dark"><Edit2 size={16} /></button>
                                 <button onClick={() => handleDeleteReward(r.id)} className="p-2 hover:bg-red-50 rounded-lg text-brand-dark/40 hover:text-red-500"><Trash2 size={16} /></button>
@@ -589,13 +612,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
             {showRewardModal && (
                 <div className="fixed inset-0 z-[400] overflow-y-auto">
                     <div className="flex items-center justify-center min-h-screen p-4">
-                        <div className="absolute inset-0 bg-brand-dark/60 backdrop-blur-sm" onClick={() => setShowRewardModal(false)} />
+                        <div className="absolute inset-0 bg-brand-dark/60 backdrop-blur-sm" onClick={() => { setShowRewardModal(false); setRewardImageUrl(null); }} />
                         <div className="relative bg-white rounded-[40px] shadow-2xl w-full max-w-xl p-10 transform transition-all animate-pop-in border border-brand-dark/10">
                             <h2 className="text-3xl font-display font-bold mb-8 italic">{editingReward ? 'Refine' : 'Add'} Reward</h2>
                             <form onSubmit={handleSaveReward} className="space-y-6">
+                                {/* Image Upload */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Reward Image (Optional)</label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-20 h-20 rounded-2xl bg-gray-50 border-2 border-dashed border-brand-dark/10 flex items-center justify-center overflow-hidden shrink-0">
+                                            {(rewardImageUrl || editingReward?.imageUrl) ? (
+                                                <img src={rewardImageUrl || editingReward?.imageUrl!} alt="preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-3xl">{editingReward?.icon || '🎁'}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleRewardImageChange}
+                                                className="w-full text-xs text-brand-dark/50 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-bold file:bg-brand-dark/5 file:text-brand-dark hover:file:bg-brand-dark/10 cursor-pointer"
+                                            />
+                                            <p className="text-[10px] text-brand-dark/30 mt-1 px-1">PNG, JPG, WEBP up to 50MB. If set, image replaces the emoji icon.</p>
+                                            {(rewardImageUrl || editingReward?.imageUrl) && (
+                                                <button type="button" onClick={() => setRewardImageUrl('')} className="text-[10px] text-red-400 hover:text-red-600 font-bold mt-1 px-1">✕ Remove image</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Icon/Emoji</label>
+                                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest px-1">Icon/Emoji (fallback)</label>
                                         <input name="icon" defaultValue={editingReward?.icon || ''} className="w-full bg-gray-50 border-0 rounded-2xl px-6 py-4 font-bold text-2xl focus:ring-2 ring-brand-orange/20" placeholder="🎁" />
                                     </div>
                                     <div className="space-y-1">

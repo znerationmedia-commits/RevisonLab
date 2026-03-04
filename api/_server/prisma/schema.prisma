@@ -74,6 +74,7 @@ model Reward {
   description String?      @db.Text
   coinCost    Int
   icon        String?      // Lucide icon name or emoji
+  imageUrl    String?      @db.Text  // base64 data URL for reward image
   stock       Int?         // Null means unlimited
   isActive    Boolean      @default(true)
   createdAt   DateTime     @default(now())

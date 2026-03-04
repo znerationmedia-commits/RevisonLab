@@ -6,6 +6,7 @@ interface Reward {
     title: string;
     description: string;
     icon: string;
+    imageUrl: string | null;
     coinCost: number;
     stock: number | null;
     isActive: boolean;
@@ -172,7 +173,12 @@ const RewardsShop: React.FC<RewardsShopProps> = ({ userCoins, token, onCoinsUpda
                                 <div key={reward.id}
                                     className={`bg-white rounded-[32px] p-8 border transition-all flex flex-col relative group
                                     ${disabled ? 'opacity-50 grayscale' : 'border-brand-dark/5 shadow-sm hover:shadow-2xl hover:border-brand-orange/20 hover:-translate-y-2'}`}>
-                                    <div className="text-6xl mb-6 text-center group-hover:scale-110 transition-transform duration-500">{reward.icon}</div>
+                                    <div className="flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                                        {reward.imageUrl
+                                            ? <img src={reward.imageUrl} alt={reward.title} className="w-20 h-20 object-cover rounded-2xl shadow-md" />
+                                            : <span className="text-6xl">{reward.icon}</span>
+                                        }
+                                    </div>
                                     <h3 className="font-display font-bold text-xl text-center mb-2 tracking-tight">{reward.title}</h3>
                                     <p className="text-brand-dark/40 text-sm text-center mb-6 flex-1 font-medium leading-relaxed">{reward.description}</p>
                                     <div className="flex items-center justify-between mt-auto pt-6 border-t border-brand-dark/5">

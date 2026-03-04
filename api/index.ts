@@ -38,7 +38,7 @@ app.use(cors());
 // Webhook route MUST come before express.json() to use raw body
 app.use('/api/webhooks', webhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: '70mb' }));
 
 // Log all requests
 app.use((req, res, next) => {

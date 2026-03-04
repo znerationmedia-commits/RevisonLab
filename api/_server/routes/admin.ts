@@ -179,13 +179,16 @@ router.put('/rewards/:id', async (req, res) => {
     }
 });
 
-// DELETE /api/admin/rewards/:id — delete a reward
+// DELETE /api/admin/rewards/:id — delete a reward (and its linked redemptions first)
 router.delete('/rewards/:id', async (req, res) => {
     const { id } = req.params;
     try {
+        // Delete linked redemptions first to avoid foreign key constraint errors
+        await prisma.redemption.deleteMany({ where: { rewardId: id } });
         await prisma.reward.delete({ where: { id } });
         res.json({ success: true });
     } catch (error) {
+        console.error('[ADMIN] Delete reward error:', error);
         res.status(500).json({ error: 'Failed to delete reward' });
     }
 });
