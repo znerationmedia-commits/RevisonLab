@@ -190,7 +190,7 @@ export default function App() {
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpData, setLevelUpData] = useState<{ prevLevel: number; newLevel: number; xpGained: number } | null>(null);
-  const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
+  const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
   const [showPromo, setShowPromo] = useState(true);
   const [selectedPlanLevel, setSelectedPlanLevel] = useState<'single' | 'all'>('single');
   const [selectedSubscriptionSyllabus, setSelectedSubscriptionSyllabus] = useState<Syllabus | null>(null);
@@ -205,11 +205,11 @@ export default function App() {
       if (testRegion) {
         console.log("Using testing override:", testRegion);
         if (testRegion === 'SG') {
-          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 12, amountAll: 15 });
+          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
         } else if (testRegion === 'US' || testRegion === 'GB' || testRegion === 'AU') {
-          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9, amountAll: 12 });
+          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9.9, amountAll: 14.9 });
         } else {
-          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
+          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
         }
         return;
       }
@@ -224,16 +224,16 @@ export default function App() {
         console.log("Detected Country:", code);
 
         if (code === 'SG') {
-          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 16.9, amountAll: 19.9 });
+          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
         } else if (code === 'MY') {
-          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
+          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
         } else {
-          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 16.9, amountAll: 19.9 });
+          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9.9, amountAll: 14.9 });
         }
       } catch (error) {
         console.error("Geolocation failed:", error);
         // Default to MYR
-        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 16.9, amountAll: 19.9 });
+        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
       }
     };
     detectCountry();

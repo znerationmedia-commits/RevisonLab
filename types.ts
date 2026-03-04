@@ -18,8 +18,8 @@ export enum Subject {
 }
 
 export enum Syllabus {
-  KSSR_KSSM = 'Malaysian National Curriculum (KSSR/KSSM)',
-  MOE_SINGAPORE = 'Singapore MOE Syllabus (PSLE/O-Level)',
+  KSSR_KSSM = 'Malaysia National Curriculum',
+  MOE_SINGAPORE = 'Singapore National Curriculum',
   IGCSE = 'Cambridge IGCSE',
   UEC = 'Unified Examination Certificate (UEC)',
   IB = 'International Baccalaureate (IB)'
