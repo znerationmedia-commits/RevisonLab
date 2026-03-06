@@ -7,9 +7,12 @@ interface HeroProps {
     onViewPricing: () => void;
     isLoggedIn: boolean;
     isSubscribed: boolean;
+    currencyConfig: { code: string; symbol: string; amount: number; amountAll: number };
 }
 
-export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, isSubscribed }) => {
+export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, isSubscribed, currencyConfig }) => {
+    const priceDisplay = currencyConfig?.code === 'MYR' ? 'RM20' : '$10';
+
     return (
         <section className="relative text-center space-y-8 py-20 sm:py-32 px-4 w-screen -ml-[50vw] left-1/2 min-h-[70vh] flex items-center justify-center flex-col overflow-hidden mt-8">
             {/* Background Image */}
@@ -43,7 +46,7 @@ export const Hero: React.FC<HeroProps> = ({ onStart, onViewPricing, isLoggedIn, 
                 </h1>
 
                 <p className="text-sm sm:text-base lg:text-lg text-white/90 max-w-xl mx-auto leading-relaxed font-medium px-2 animate-reveal-up delay-300 drop-shadow-md">
-                    Master Every Subject. Unlimited Questions for Less Than $10/RM20
+                    Master Every Subject. Unlimited Questions for Less Than {priceDisplay}
                 </p>
             </div>
 

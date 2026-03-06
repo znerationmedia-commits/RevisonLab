@@ -1017,6 +1017,7 @@ export default function App() {
         onViewPricing={() => navigate('/pricing')}
         isLoggedIn={!!user}
         isSubscribed={user?.isSubscribed || false}
+        currencyConfig={currencyConfig}
       />
 
       {/* Quick Access Cards */}
