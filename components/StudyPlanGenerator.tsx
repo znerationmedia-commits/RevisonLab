@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Subject, Syllabus, GradeLevel } from '../types';
 import { geminiService, StudyPlanRequest, StudyPlanResponse } from '../services/geminiService';
 import { Button } from './Button';
 import { Card } from './Card';
-import { Calendar, Loader2, Sparkles, Clock, Target, CheckCircle2, BookOpen } from 'lucide-react';
+import { Calendar, Loader2, Sparkles, Clock, Target, CheckCircle2, BookOpen, ArrowLeft } from 'lucide-react';
 
 export const StudyPlanGenerator: React.FC = () => {
+    const navigate = useNavigate();
     const [subject, setSubject] = useState<string>('');
     const [grade, setGrade] = useState<string>('');
     const [syllabus, setSyllabus] = useState<string>('');
@@ -48,6 +50,12 @@ export const StudyPlanGenerator: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-4 mb-4">
+                <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                    <ArrowLeft size={16} /> Back
+                </Button>
+            </div>
+
             <div className="text-center space-y-3 mb-8">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-brand-blue/10 text-brand-blue mb-4">
                     <Calendar size={32} />
