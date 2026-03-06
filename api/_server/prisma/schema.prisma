@@ -138,3 +138,17 @@ model CourseSyllabus {
 
   @@unique([subject, grade, syllabus])
 }
+
+model PaperFile {
+  id        String   @id @default(uuid())
+  syllabus  String
+  grade     String
+  subject   String
+  year      Int
+  label     String   // e.g. "SPM 2023 — Paper 1"
+  fileData  String   @db.Text  // base64-encoded PDF
+  fileSize  Int      // original size in bytes
+  createdAt DateTime @default(now())
+
+  @@index([syllabus, grade, subject, year])
+}

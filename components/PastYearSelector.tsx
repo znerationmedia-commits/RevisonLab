@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Subject, Syllabus, GradeLevel } from '../types';
-import { BookOpen, ScrollText, Calendar, ExternalLink, AlertCircle } from 'lucide-react';
+import { BookOpen, ScrollText, Calendar, ExternalLink, AlertCircle, FileText } from 'lucide-react';
 import { getPaperResource } from '../services/paperResources';
 
 interface PastYearSelectorProps {
@@ -32,6 +32,8 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
 
     // Fetch real question counts per year for the badge display
     const [yearCounts, setYearCounts] = useState<Record<string, number>>({});
+    // Uploaded paper files for current selection
+    const [uploadedPapers, setUploadedPapers] = useState<{ id: string; label: string }[]>([]);
 
     useEffect(() => {
         if (!selectedSyllabus || !selectedGrade || !selectedSubject) {
@@ -50,6 +52,25 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
             .then(data => setYearCounts(data || {}))
             .catch(() => setYearCounts({}));
     }, [selectedSyllabus, selectedGrade, selectedSubject]);
+
+    // Fetch uploaded PDFs when all 4 fields are selected
+    useEffect(() => {
+        if (!selectedSyllabus || !selectedGrade || !selectedSubject || !selectedYear) {
+            setUploadedPapers([]);
+            return;
+        }
+        const yearNum = selectedYear.split(' ')[0];
+        const params = new URLSearchParams({
+            syllabus: selectedSyllabus,
+            grade: selectedGrade,
+            subject: selectedSubject,
+            year: yearNum
+        });
+        fetch(`/api/paper-files?${params}`)
+            .then(r => r.ok ? r.json() : [])
+            .then(data => setUploadedPapers(data || []))
+            .catch(() => setUploadedPapers([]));
+    }, [selectedSyllabus, selectedGrade, selectedSubject, selectedYear]);
 
     // Look up if a paper resource exists for the current selection
     const paperResource = selectedSyllabus && selectedGrade && selectedSubject && selectedYear
@@ -194,6 +215,34 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
             {/* Source Material — shown when all 4 steps are complete */}
             {selectedSyllabus && selectedGrade && selectedSubject && selectedYear && (
                 <div className="mt-8 animate-float">
+                    {/* Uploaded PDFs (from admin uploads) */}
+                    {uploadedPapers.length > 0 && (
+                        <div className="space-y-2 mb-3">
+                            {uploadedPapers.map(paper => (
+                                <div key={paper.id} className="p-4 bg-brand-orange/5 rounded-2xl border border-brand-orange/20 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-brand-orange/10 rounded-full flex items-center justify-center text-brand-orange shrink-0">
+                                            <FileText size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-brand-dark">{paper.label}</p>
+                                            <p className="text-xs text-brand-dark/50 font-medium">Official Past Year Paper — PDF</p>
+                                        </div>
+                                    </div>
+                                    <a
+                                        href={`/api/paper-files/${paper.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm hover:bg-brand-orange/90 active:scale-95 transition-all whitespace-nowrap shrink-0"
+                                    >
+                                        <FileText size={15} />
+                                        View PDF
+                                    </a>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {paperResource ? (
                         /* ── PAPER FOUND: show the clickable redirect button ── */
                         <div className="p-4 bg-brand-green/5 rounded-2xl border border-brand-green/20 flex items-center justify-between gap-4">
@@ -219,7 +268,7 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
                                 Open PDF Source
                             </a>
                         </div>
-                    ) : (
+                    ) : uploadedPapers.length === 0 ? (
                         /* ── NO PAPER: graceful fallback ── */
                         <div className="p-4 bg-brand-dark/3 rounded-2xl border border-brand-dark/10 flex items-center gap-3">
                             <div className="w-10 h-10 bg-brand-dark/5 rounded-full flex items-center justify-center shrink-0">
@@ -232,7 +281,7 @@ export const PastYearSelector: React.FC<PastYearSelectorProps> = ({
                                 </p>
                             </div>
                         </div>
-                    )}
+                    ) : null}
                 </div>
             )}
         </div>

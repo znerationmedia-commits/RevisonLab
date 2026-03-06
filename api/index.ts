@@ -29,6 +29,7 @@ import webhookRoutes from './_server/routes/webhooks.js';
 import adminRoutes from './_server/routes/admin.js';
 import rewardRoutes from './_server/routes/rewards.js';
 import questionBankRoutes from './questionBank.js';
+import paperFilesRoutes from './_server/routes/paperFiles.js';
 
 const app = express();
 console.log("[VERCEL] Starting serverless function...");
@@ -38,7 +39,7 @@ app.use(cors());
 // Webhook route MUST come before express.json() to use raw body
 app.use('/api/webhooks', webhookRoutes);
 
-app.use(express.json({ limit: '70mb' }));
+app.use(express.json({ limit: '150mb' }));
 
 // Log all requests
 app.use((req, res, next) => {
@@ -55,6 +56,7 @@ app.use('/api/test', testRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/question-bank', questionBankRoutes);
+app.use('/api/paper-files', paperFilesRoutes);
 
 app.get('/api', (req, res) => {
     res.send('RevisionLab API is running on Vercel');

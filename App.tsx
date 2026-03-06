@@ -25,6 +25,7 @@ import { SyllabusExplorer } from './components/SyllabusExplorer';
 import RewardsShop from './components/RewardsShop';
 import { PastYearSelector } from './components/PastYearSelector';
 import { FeaturedPapers } from './components/FeaturedPapers';
+import { DataAnalysis } from './components/DataAnalysis';
 
 const INITIAL_STATS: UserStats = {
   xp: 0,
@@ -1368,6 +1369,10 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <div className="mt-8">
+        <DataAnalysis token={localStorage.getItem('quest_token') || ''} />
+      </div>
 
       <div className="flex gap-4 justify-center">
         <Button variant="outline" onClick={() => navigate('/')}>Home</Button>

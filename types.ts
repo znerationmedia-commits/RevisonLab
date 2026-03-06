@@ -119,4 +119,18 @@ export interface CustomQuest {
   questions: Question[];
 }
 
+export interface ResultEntry {
+  id: string;
+  userId: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  mode: string;
+  subject?: string;
+  date: string;
+  quest?: {
+    title: string;
+  };
+}
+
 export type ViewState = 'HOME' | 'PRICING' | 'GAME_SETUP' | 'GAME_SESSION' | 'DASHBOARD' | 'TEACHER_DASHBOARD' | 'REWARDS' | 'ADMIN';

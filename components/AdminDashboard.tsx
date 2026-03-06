@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Subject, Syllabus, GradeLevel } from '../types';
 import {
     Users,
     TrendingUp,
@@ -22,7 +23,8 @@ import {
     Database,
     Upload,
     Sparkles,
-    Zap
+    Zap,
+    FileText
 } from 'lucide-react';
 
 interface AdminStats {
@@ -88,7 +90,7 @@ const API_BASE = '/api/admin';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [stats, setStats] = useState<AdminStats | null>(null);
-    const [tab, setTab] = useState<'analytics' | 'users' | 'rewards' | 'redemptions'>('analytics');
+    const [tab, setTab] = useState<'analytics' | 'users' | 'rewards' | 'redemptions' | 'papers'>('analytics');
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<UserStats[]>([]);
     const [rewards, setRewards] = useState<Reward[]>([]);
@@ -101,6 +103,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [editingReward, setEditingReward] = useState<Reward | null>(null);
     const [rewardImageUrl, setRewardImageUrl] = useState<string | null>(null);
 
+    // Paper Files state
+    const [paperFiles, setPaperFiles] = useState<any[]>([]);
+    const [uploadForm, setUploadForm] = useState({ syllabus: '', grade: '', subject: '', year: '', label: '' });
+    const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+    const [uploading, setUploading] = useState(false);
+
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     const showToast = (msg: string, type: 'success' | 'error') => {
@@ -111,17 +119,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [uRes, sRes, rRes, rdRes] = await Promise.all([
+            const [uRes, sRes, rRes, rdRes, pfRes] = await Promise.all([
                 fetch(`${API_BASE}/users`, { headers }),
                 fetch(`${API_BASE}/stats`, { headers }),
                 fetch(`${API_BASE}/rewards`, { headers }),
-                fetch(`${API_BASE}/redemptions`, { headers })
+                fetch(`${API_BASE}/redemptions`, { headers }),
+                fetch('/api/paper-files', { headers })
             ]);
 
             if (uRes.ok) setUsers(await uRes.json());
             if (sRes.ok) setStats(await sRes.json());
             if (rRes.ok) setRewards(await rRes.json());
             if (rdRes.ok) setRedemptions(await rdRes.json());
+            if (pfRes.ok) setPaperFiles(await pfRes.json());
         } catch (error) {
             showToast('Failed to refresh data', 'error');
         }
@@ -164,6 +174,79 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         const reader = new FileReader();
         reader.onload = () => setRewardImageUrl(reader.result as string);
         reader.readAsDataURL(file);
+    };
+
+    // PDF Upload handlers
+    const handlePaperFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selected = Array.from(e.target.files || []);
+        const tooBig = selected.filter(f => f.size > 100 * 1024 * 1024);
+        if (tooBig.length > 0) {
+            showToast(`${tooBig.length} file(s) exceed 100MB limit`, 'error');
+            return;
+        }
+        setUploadFiles(selected);
+    };
+
+    const handleUploadPapers = async () => {
+        if (!uploadForm.syllabus || !uploadForm.grade || !uploadForm.subject || !uploadForm.year) {
+            showToast('Please fill in all fields (Syllabus, Grade, Subject, Year)', 'error');
+            return;
+        }
+        if (uploadFiles.length === 0) {
+            showToast('Please select at least one PDF file', 'error');
+            return;
+        }
+        setUploading(true);
+        try {
+            // Convert all files to base64
+            const filesData = await Promise.all(
+                uploadFiles.map(file => new Promise<{ label: string; fileData: string; fileSize: number }>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve({
+                        label: uploadForm.label || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' '),
+                        fileData: reader.result as string,
+                        fileSize: file.size
+                    });
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                }))
+            );
+
+            const res = await fetch('/api/paper-files/upload', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ ...uploadForm, year: parseInt(uploadForm.year), files: filesData })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast(`✅ ${data.uploaded} PDF(s) uploaded successfully!`, 'success');
+                setUploadFiles([]);
+                setUploadForm({ syllabus: '', grade: '', subject: '', year: '', label: '' });
+                fetchData();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.error || 'Upload failed', 'error');
+            }
+        } catch (e) {
+            showToast('Upload error. Check file sizes.', 'error');
+        }
+        setUploading(false);
+    };
+
+    const handleDeletePaper = async (id: string) => {
+        if (!confirm('Delete this paper PDF?')) return;
+        try {
+            const res = await fetch(`/api/paper-files/${id}`, { method: 'DELETE', headers });
+            if (res.ok) {
+                showToast('Paper deleted', 'success');
+                setPaperFiles(prev => prev.filter(p => p.id !== id));
+            } else {
+                showToast('Failed to delete', 'error');
+            }
+        } catch {
+            showToast('Error deleting paper', 'error');
+        }
     };
 
     const handleSaveReward = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -331,6 +414,157 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                     <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
                 </div>
             ))}
+        </div>
+    );
+
+    const renderPapers = () => (
+        <div className="space-y-8">
+            {/* Upload Form */}
+            <div className="bg-white rounded-3xl p-8 border border-brand-dark/5 shadow-sm">
+                <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
+                    <Upload size={20} className="text-brand-orange" />
+                    Upload Past Year PDFs
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest block mb-1">Syllabus *</label>
+                        <select
+                            value={uploadForm.syllabus}
+                            onChange={e => setUploadForm(p => ({ ...p, syllabus: e.target.value }))}
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 font-medium text-sm outline-none focus:ring-2 ring-brand-orange/20 appearance-none"
+                        >
+                            <option value="">Select Syllabus...</option>
+                            {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest block mb-1">Grade *</label>
+                        <select
+                            value={uploadForm.grade}
+                            onChange={e => setUploadForm(p => ({ ...p, grade: e.target.value }))}
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 font-medium text-sm outline-none focus:ring-2 ring-brand-orange/20 appearance-none"
+                        >
+                            <option value="">Select Grade...</option>
+                            {Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest block mb-1">Subject *</label>
+                        <select
+                            value={uploadForm.subject}
+                            onChange={e => setUploadForm(p => ({ ...p, subject: e.target.value }))}
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 font-medium text-sm outline-none focus:ring-2 ring-brand-orange/20 appearance-none"
+                        >
+                            <option value="">Select Subject...</option>
+                            {Object.values(Subject).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest block mb-1">Year *</label>
+                        <select
+                            value={uploadForm.year}
+                            onChange={e => setUploadForm(p => ({ ...p, year: e.target.value }))}
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 font-medium text-sm outline-none focus:ring-2 ring-brand-orange/20 appearance-none"
+                        >
+                            <option value="">Select Year...</option>
+                            {['2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018', '2017', '2016'].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                        <label className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest block mb-1">Label (optional — auto-uses filename if blank)</label>
+                        <input
+                            value={uploadForm.label}
+                            onChange={e => setUploadForm(p => ({ ...p, label: e.target.value }))}
+                            placeholder="e.g. SPM 2023 — Mathematics Paper 1"
+                            className="w-full bg-gray-50 rounded-xl px-4 py-3 font-medium text-sm outline-none focus:ring-2 ring-brand-orange/20"
+                        />
+                    </div>
+                </div>
+
+                {/* File Picker */}
+                <div className="border-2 border-dashed border-brand-dark/10 rounded-2xl p-6 text-center mb-4 hover:border-brand-orange/30 transition-colors">
+                    <input
+                        type="file"
+                        accept="application/pdf"
+                        multiple
+                        id="pdf-upload"
+                        className="hidden"
+                        onChange={handlePaperFilesChange}
+                    />
+                    <label htmlFor="pdf-upload" className="cursor-pointer">
+                        <FileText size={32} className="mx-auto text-brand-dark/20 mb-3" />
+                        <p className="font-bold text-sm text-brand-dark/50">
+                            {uploadFiles.length > 0
+                                ? `${uploadFiles.length} file(s) selected`
+                                : 'Click to select PDF(s) — multiple allowed'}
+                        </p>
+                        {uploadFiles.length > 0 && (
+                            <ul className="mt-2 text-xs text-brand-dark/40 space-y-1">
+                                {uploadFiles.map((f, i) => (
+                                    <li key={i}>{f.name} — {(f.size / 1024 / 1024).toFixed(1)} MB</li>
+                                ))}
+                            </ul>
+                        )}
+                        <p className="text-[10px] text-brand-dark/30 mt-2">Up to 100MB per file</p>
+                    </label>
+                </div>
+
+                <button
+                    onClick={handleUploadPapers}
+                    disabled={uploading}
+                    className="w-full bg-brand-dark text-white py-4 rounded-2xl font-bold text-sm hover:bg-brand-orange transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                >
+                    {uploading ? <><span className="animate-spin">⏳</span> Uploading...</> : <><Upload size={16} /> Upload PDF(s)</>}
+                </button>
+            </div>
+
+            {/* Uploaded Papers List */}
+            <div className="bg-white rounded-3xl border border-brand-dark/5 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-brand-dark/5">
+                    <h3 className="font-bold flex items-center gap-2">
+                        <FileText size={18} className="text-brand-orange" />
+                        Uploaded Papers ({paperFiles.length})
+                    </h3>
+                </div>
+                {paperFiles.length === 0 ? (
+                    <p className="text-center py-16 text-brand-dark/30 font-bold italic text-sm">No papers uploaded yet</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-gray-50/50 text-left">
+                                    {['Label', 'Syllabus', 'Grade', 'Subject', 'Year', 'Size', ''].map(h => (
+                                        <th key={h} className="px-5 py-3 text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-brand-dark/5">
+                                {paperFiles.map(p => (
+                                    <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-5 py-3">
+                                            <a href={`/api/paper-files/${p.id}`} target="_blank" rel="noopener noreferrer"
+                                                className="font-bold text-sm text-brand-orange hover:underline flex items-center gap-1">
+                                                <FileText size={14} />{p.label}
+                                            </a>
+                                        </td>
+                                        <td className="px-5 py-3 text-xs font-medium text-brand-dark/60">{p.syllabus}</td>
+                                        <td className="px-5 py-3 text-xs font-medium text-brand-dark/60">{p.grade}</td>
+                                        <td className="px-5 py-3 text-xs font-medium text-brand-dark/60">{p.subject}</td>
+                                        <td className="px-5 py-3 text-xs font-bold text-brand-dark">{p.year}</td>
+                                        <td className="px-5 py-3 text-xs text-brand-dark/40">{(p.fileSize / 1024 / 1024).toFixed(1)} MB</td>
+                                        <td className="px-5 py-3">
+                                            <button onClick={() => handleDeletePaper(p.id)}
+                                                className="p-2 hover:bg-red-50 rounded-lg text-brand-dark/30 hover:text-red-500 transition-colors">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 
@@ -542,7 +776,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                         { id: 'analytics', label: 'Analytics', icon: <TrendingUp size={18} /> },
                         { id: 'users', label: 'Students', icon: <Users size={18} /> },
                         { id: 'rewards', label: 'Rewards', icon: <Gift size={18} /> },
-                        { id: 'redemptions', label: 'Orders', icon: <ShoppingBag size={18} /> }
+                        { id: 'redemptions', label: 'Orders', icon: <ShoppingBag size={18} /> },
+                        { id: 'papers', label: 'Papers', icon: <FileText size={18} /> }
                     ].map(item => (
                         <button
                             key={item.id}
@@ -582,7 +817,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                                 {selectedUser ? 'Student Performance' :
                                     tab === 'analytics' ? 'Dashboard Overview' :
                                         tab === 'users' ? 'Student Management' :
-                                            tab === 'rewards' ? 'Rewards Catalog' : 'Fulfillment Center'}
+                                            tab === 'rewards' ? 'Rewards Catalog' :
+                                                tab === 'papers' ? 'Past Year Papers' : 'Fulfillment Center'}
                             </h1>
                             <p className="text-brand-dark/40 text-sm mt-1 font-medium italic">
                                 {selectedUser ? `Analyzing growth for ${selectedUser.name}` : 'Real-time platform monitoring'}
@@ -603,6 +839,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
                             {tab === 'users' && renderUsers()}
                             {tab === 'rewards' && renderRewards()}
                             {tab === 'redemptions' && renderRedemptions()}
+                            {tab === 'papers' && renderPapers()}
                         </>
                     )}
                 </div>
