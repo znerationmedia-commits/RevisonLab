@@ -192,38 +192,21 @@ export default function App() {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpData, setLevelUpData] = useState<{ prevLevel: number; newLevel: number; xpGained: number } | null>(null);
   const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const [showPromo, setShowPromo] = useState(true);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedPlanLevel, setSelectedPlanLevel] = useState<'single' | 'all'>('single');
   const [selectedSubscriptionSyllabus, setSelectedSubscriptionSyllabus] = useState<Syllabus | null>(null);
 
   // Geolocation Effect
   useEffect(() => {
     const detectCountry = async () => {
-      // --- TESTING OVERRIDE: Set to 'SG', 'US', or null to use real IP ---
+      // --- TESTING OVERRIDE: Set to 'SG', 'US', 'MY', or null to use real IP ---
       const testRegion: string | null = null;
-      // -------------------------------------------------------------------
+      // -------------------------------------------------------------------------
 
-      if (testRegion) {
-        console.log("Using testing override:", testRegion);
-        if (testRegion === 'SG') {
-          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
-        } else if (testRegion === 'US' || testRegion === 'GB' || testRegion === 'AU') {
-          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9.9, amountAll: 14.9 });
-        } else {
-          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
-        }
-        return;
-      }
-
-      try {
-        console.log("Fetching geolocation...");
-        // Use backend proxy to avoid CORS issues on Vercel
-        const res = await fetch('/api/geolocation');
-        if (!res.ok) throw new Error("API response not ok");
-        const data = await res.json();
-        const code = data.countryCode;
-        console.log("Detected Country:", code);
-
+      const applyCountry = (code: string) => {
+        setDetectedCountry(code);
         if (code === 'SG') {
           setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
         } else if (code === 'MY') {
@@ -231,10 +214,26 @@ export default function App() {
         } else {
           setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9.9, amountAll: 14.9 });
         }
+      };
+
+      if (testRegion) {
+        console.log("Using testing override:", testRegion);
+        applyCountry(testRegion);
+        return;
+      }
+
+      try {
+        console.log("Fetching geolocation...");
+        const res = await fetch('/api/geolocation');
+        if (!res.ok) throw new Error("API response not ok");
+        const data = await res.json();
+        const code = data.countryCode;
+        console.log("Detected Country:", code);
+        applyCountry(code);
       } catch (error) {
         console.error("Geolocation failed:", error);
-        // Default to MYR
-        setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
+        // Default to MY (most users)
+        applyCountry('MY');
       }
     };
     detectCountry();
@@ -257,12 +256,27 @@ export default function App() {
     fetchQuests();
   }, [location.pathname]);
 
-  // Auto-select KSSR/KSSM if not selected
+  // Returns syllabuses available for the detected country
+  const getSyllabusesByCountry = (country: string | null): Syllabus[] => {
+    if (country === 'MY') {
+      // Malaysia: show everything
+      return Object.values(Syllabus);
+    } else if (country === 'SG') {
+      // Singapore: MOE Singapore, IGCSE, IB – no KSSM or UEC
+      return [Syllabus.MOE_SINGAPORE, Syllabus.IGCSE, Syllabus.IB];
+    } else {
+      // International / undetected: IGCSE and IB only
+      return [Syllabus.IGCSE, Syllabus.IB, Syllabus.MOE_SINGAPORE];
+    }
+  };
+
+  // Auto-select best-fit default syllabus based on detected country
   useEffect(() => {
     if (location.pathname === '/practice' && !selectedSyllabus) {
-      setSelectedSyllabus(Syllabus.KSSR_KSSM);
+      const available = getSyllabusesByCountry(detectedCountry);
+      setSelectedSyllabus(available[0]);
     }
-  }, [location.pathname, selectedSyllabus]);
+  }, [location.pathname, selectedSyllabus, detectedCountry]);
 
   // Reset grade if invalid for current syllabus
   useEffect(() => {
@@ -1061,20 +1075,31 @@ export default function App() {
             </div>
             <h3 className="font-bold text-brand-dark mb-1">Rewards Shop</h3>
             <p className="text-xs text-brand-dark/60 mb-6 flex-1">
-              Spend your hard-earned coins on exciting rewards and power-ups.
+              {user?.isSubscribed
+                ? 'Spend your hard-earned coins on exciting rewards and power-ups.'
+                : 'Exclusive for Pro members. Upgrade to unlock the rewards shop!'}
             </p>
-            <Button
-              variant="primary"
-              size="sm"
-              fullWidth
-              className="bg-yellow-500 hover:bg-yellow-600 shadow-md shadow-yellow-500/20"
-              onClick={() => {
-                if (!user) setShowLoginModal(true);
-                else navigate('/rewards');
-              }}
-            >
-              <Coins size={14} className="mr-1.5" /> Visit Shop
-            </Button>
+            {user?.isSubscribed ? (
+              <Button
+                variant="primary"
+                size="sm"
+                fullWidth
+                className="bg-yellow-500 hover:bg-yellow-600 shadow-md shadow-yellow-500/20"
+                onClick={() => navigate('/rewards')}
+              >
+                <Coins size={14} className="mr-1.5" /> Visit Shop
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth
+                className="border-yellow-400/40 text-yellow-600 hover:bg-yellow-50"
+                onClick={() => { if (!user) setShowLoginModal(true); else navigate('/pricing'); }}
+              >
+                <Lock size={14} className="mr-1.5" /> {user ? 'Upgrade to Unlock' : 'Log In'}
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -1218,7 +1243,7 @@ export default function App() {
                     value={selectedSubscriptionSyllabus || ''}
                   >
                     <option value="" disabled>Select Syllabus...</option>
-                    {Object.values(Syllabus).map(s => (
+                    {getSyllabusesByCountry(detectedCountry).map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
@@ -1386,15 +1411,15 @@ export default function App() {
 
 
   const renderGameSetup = () => (
-    <div className="max-w-4xl mx-auto space-y-8 animate-float">
-      <div className="flex items-center gap-4 mb-8">
+    <div className="max-w-4xl mx-auto pb-28 md:pb-8 animate-float">
+      <div className="flex items-center gap-3 mb-6">
         <Button variant="outline" size="sm" onClick={() => navigate('/')}>
-          <ArrowLeft size={20} /> Back
+          <ArrowLeft size={18} /> Back
         </Button>
-        <h2 className="text-3xl font-display font-bold text-brand-dark">Setup Your Quest</h2>
+        <h2 className="text-2xl md:text-3xl font-display font-bold text-brand-dark">Setup Your Quest</h2>
       </div>
 
-      <Card>
+      <Card className="p-4 md:p-8">
         {/* Mode Selection */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 border-b border-brand-dark/10 pb-6">
           <button
@@ -1427,10 +1452,10 @@ export default function App() {
         {gameMode === 'AI' && (
           <>
             {/* Step 1: Syllabus Selection */}
-            <div className="mb-8">
+            <div className="mb-6">
               <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider mb-3">1. Select Syllabus</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
-                {Object.values(Syllabus).map((syll) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {getSyllabusesByCountry(detectedCountry).map((syll) => {
                   const isPro = user?.isSubscribed;
                   const subLevel = (user as any)?.subscriptionLevel;
                   const subSyllabus = (user as any)?.subscribedSyllabus;
@@ -1441,14 +1466,14 @@ export default function App() {
                       key={syll}
                       onClick={() => !isLocked && setSelectedSyllabus(syll)}
                       disabled={isLocked}
-                      className={`p-4 rounded-xl border-2 font-bold text-left transition-all flex items-center justify-between gap-3 ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'} ${isLocked ? 'opacity-40 cursor-not-allowed bg-gray-50' : ''}`}
+                      className={`p-3.5 rounded-xl border-2 font-bold text-left transition-all flex items-center justify-between gap-3 text-sm ${selectedSyllabus === syll ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'} ${isLocked ? 'opacity-40 cursor-not-allowed bg-gray-50' : ''}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <ScrollText size={20} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
-                        <span>{syll}</span>
+                      <div className="flex items-center gap-2.5">
+                        <ScrollText size={18} className={selectedSyllabus === syll ? 'text-brand-accent' : 'text-brand-dark/40'} />
+                        <span className="leading-tight">{syll}</span>
                       </div>
                       {isLocked && (
-                        <div className="bg-brand-orange/10 text-brand-orange text-[10px] px-2 py-1 rounded-lg flex items-center gap-1">
+                        <div className="bg-brand-orange/10 text-brand-orange text-[10px] px-2 py-1 rounded-lg flex items-center gap-1 shrink-0">
                           <Lock size={10} /> LOCKED
                         </div>
                       )}
@@ -1645,6 +1670,25 @@ export default function App() {
           </div>
         )}
 
+        {/* Desktop start button (inside card) */}
+        <div className="hidden md:block">
+          <Button
+            fullWidth
+            size="lg"
+            disabled={
+              gameMode === 'AI' ? (!selectedSubject || !selectedTopic || !selectedSyllabus || !selectedGrade || loadingGame) :
+                gameMode === 'PAST_YEAR' ? (!selectedSubject || !selectedYear || !selectedSyllabus || !selectedGrade || loadingGame) :
+                  (!selectedCustomQuest)
+            }
+            onClick={handleStartGame}
+          >
+            {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : 'Start Adventure'}
+          </Button>
+        </div>
+      </Card>
+
+      {/* Mobile sticky start button */}
+      <div className="md:hidden fixed bottom-20 left-0 right-0 px-4 z-40">
         <Button
           fullWidth
           size="lg"
@@ -1654,10 +1698,11 @@ export default function App() {
                 (!selectedCustomQuest)
           }
           onClick={handleStartGame}
+          className="shadow-2xl shadow-brand-blue/30 py-5 text-base"
         >
-          {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : 'Start Adventure'}
+          {loadingGame ? <><Loader2 className="animate-spin" /> Preparing Quest...</> : '🚀 Start Adventure'}
         </Button>
-      </Card>
+      </div>
     </div>
   );
 
@@ -1699,11 +1744,26 @@ export default function App() {
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand-orange/20 rounded-full blur-3xl -z-10 animate-float" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-brand-blue/10 rounded-full blur-3xl -z-10" />
 
+      {/* Mobile Menu Dropdown */}
+      {showMobileMenu && (
+        <div className="md:hidden fixed top-14 left-0 right-0 z-[60] bg-white/95 backdrop-blur-xl border-b border-brand-dark/10 shadow-xl animate-menu-slide-down">
+          <div className="flex flex-col p-4 gap-1">
+            <button onClick={() => { setShowMobileMenu(false); navigate('/'); setTimeout(() => document.getElementById('courses')?.scrollIntoView({ behavior: 'smooth' }), 200); }} className="text-left px-4 py-3 rounded-xl font-bold text-brand-dark/70 hover:bg-brand-blue/5 hover:text-brand-blue transition-all text-sm">📚 Courses</button>
+            <button onClick={() => { setShowMobileMenu(false); navigate('/pricing'); }} className="text-left px-4 py-3 rounded-xl font-bold text-brand-dark/70 hover:bg-brand-orange/5 hover:text-brand-orange transition-all text-sm">💰 Pricing</button>
+            <button onClick={() => { setShowMobileMenu(false); navigate('/'); setTimeout(() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' }), 200); }} className="text-left px-4 py-3 rounded-xl font-bold text-brand-dark/70 hover:bg-brand-blue/5 hover:text-brand-blue transition-all text-sm">⭐ Reviews</button>
+            <button onClick={() => { setShowMobileMenu(false); navigate('/'); setTimeout(() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }), 200); }} className="text-left px-4 py-3 rounded-xl font-bold text-brand-dark/70 hover:bg-brand-blue/5 hover:text-brand-blue transition-all text-sm">❓ FAQ</button>
+            {user?.isSubscribed && (
+              <button onClick={() => { setShowMobileMenu(false); navigate('/rewards'); }} className="text-left px-4 py-3 rounded-xl font-bold text-brand-orange hover:bg-brand-orange/5 transition-all text-sm">🛍️ Rewards</button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Navbar */}
       <nav className="p-3 md:p-4 lg:p-5 flex justify-between items-center max-w-6xl mx-auto z-50 relative">
         <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('/')}>
           <BookOpen className="text-brand-orange w-5 h-5 md:w-6 md:h-6" />
-          <span className="font-display font-bold text-base md:text-lg hidden sm:inline tracking-tight">RevisionLab</span>
+          <span className="font-display font-bold text-base md:text-lg tracking-tight">RevisionLab</span>
         </div>
 
         <div className="hidden md:flex items-center gap-4 lg:gap-8 flex-1 justify-center px-4">
@@ -1713,7 +1773,18 @@ export default function App() {
           <button onClick={() => { navigate('/'); setTimeout(() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' }), 100); }} className="font-bold text-brand-dark/60 hover:text-brand-blue transition-colors text-xs lg:text-sm whitespace-nowrap">FAQ</button>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Hamburger button - mobile only */}
+          <button
+            className="md:hidden flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-brand-dark/5 hover:bg-brand-dark/10 transition-all gap-1.5 p-2"
+            onClick={() => setShowMobileMenu(prev => !prev)}
+            aria-label="Menu"
+          >
+            <span className={`block w-5 h-0.5 bg-brand-dark rounded-full transition-all ${showMobileMenu ? 'rotate-45 translate-y-2' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-brand-dark rounded-full transition-all ${showMobileMenu ? 'opacity-0' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-brand-dark rounded-full transition-all ${showMobileMenu ? '-rotate-45 -translate-y-2' : ''}`} />
+          </button>
+
           {!user ? (
             <Button size="sm" onClick={() => setShowLoginModal(true)}>Log In</Button>
           ) : (
@@ -1730,8 +1801,8 @@ export default function App() {
                   )}
                 </div>
               )}
-              {/* Rewards button */}
-              {user && (
+              {/* Rewards button - subscribers only */}
+              {user?.isSubscribed && (
                 <button
                   onClick={() => { navigate('/rewards'); setShowProfileMenu(false); }}
                   className="hidden md:flex items-center gap-1.5 bg-brand-orange/10 hover:bg-brand-orange/20 border border-brand-orange/20 text-brand-orange px-3 py-1 rounded-full font-bold text-sm transition-all"
@@ -1833,7 +1904,31 @@ export default function App() {
           <Route path="/" element={renderHome()} />
           <Route path="/pricing" element={renderPricing()} />
           <Route path="/dashboard" element={<ProtectedRoute>{renderDashboard()}</ProtectedRoute>} />
-          <Route path="/rewards" element={<ProtectedRoute>{renderRewards()}</ProtectedRoute>} />
+          <Route path="/rewards" element={
+            <ProtectedRoute>
+              {user?.isSubscribed ? renderRewards() : (
+                <div className="max-w-md mx-auto text-center py-20 px-4">
+                  <div className="w-24 h-24 bg-yellow-100 rounded-3xl flex items-center justify-center mx-auto mb-6 text-yellow-500">
+                    <Lock size={48} />
+                  </div>
+                  <h2 className="text-3xl font-display font-bold text-brand-dark mb-3">Pro Members Only</h2>
+                  <p className="text-brand-dark/60 mb-2 leading-relaxed">
+                    The Rewards Shop is exclusive to <span className="font-bold text-brand-orange">Pro subscribers</span>.
+                    Upgrade your plan to start spending your coins!
+                  </p>
+                  <p className="text-sm text-brand-dark/40 mb-8">You currently have <span className="font-bold text-yellow-600">{stats.coins || 0} coins</span> waiting.</p>
+                  <div className="flex flex-col gap-3">
+                    <Button fullWidth size="lg" className="bg-brand-orange hover:bg-orange-400 shadow-lg shadow-brand-orange/20" onClick={() => navigate('/pricing')}>
+                      <Sparkles size={18} className="mr-2" /> Upgrade to Pro
+                    </Button>
+                    <button onClick={() => navigate('/')} className="text-brand-dark/40 hover:text-brand-dark font-bold text-sm transition-colors py-2">
+                      Back to Home
+                    </button>
+                  </div>
+                </div>
+              )}
+            </ProtectedRoute>
+          } />
           <Route path="/admin/*" element={<ProtectedRoute adminOnly>{renderAdmin()}</ProtectedRoute>} />
           <Route path="/practice" element={<ProtectedRoute>{renderGameSetup()}</ProtectedRoute>} />
           <Route path="/practice/session" element={<ProtectedRoute>{renderGameSession()}</ProtectedRoute>} />
@@ -1844,21 +1939,49 @@ export default function App() {
       </main>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-brand-dark/5 p-4 flex justify-around items-center z-50">
-        <button onClick={() => navigate('/')} className={`flex flex-col items-center gap-1 ${location.pathname === '/' ? 'text-brand-blue' : 'text-brand-dark/40'}`}>
-          <Home size={20} />
-          <span className="text-[10px] font-bold uppercase">Home</span>
-        </button>
-        <button onClick={() => navigate('/practice')} className={`flex flex-col items-center gap-1 ${location.pathname.startsWith('/practice') ? 'text-brand-orange' : 'text-brand-dark/40'}`}>
-          <div className={`p-2 rounded-full -mt-8 shadow-lg ${location.pathname.startsWith('/practice') ? 'bg-brand-orange text-white' : 'bg-brand-dark/10 text-brand-dark/40'}`}>
-            <Plus size={24} />
-          </div>
-          <span className="text-[10px] font-bold uppercase mt-1">Practice</span>
-        </button>
-        <button onClick={() => navigate('/dashboard')} className={`flex flex-col items-center gap-1 ${location.pathname === '/dashboard' ? 'text-brand-blue' : 'text-brand-dark/40'}`}>
-          <UserIcon size={20} />
-          <span className="text-[10px] font-bold uppercase">Profile</span>
-        </button>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-brand-dark/10 safe-area-inset-bottom z-50">
+        <div className="flex justify-around items-center px-2 pt-2 pb-3">
+          {/* Home */}
+          <button
+            onClick={() => navigate('/')}
+            className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-2xl transition-all ${location.pathname === '/' ? 'bg-brand-blue/10 text-brand-blue' : 'text-brand-dark/40 hover:text-brand-dark/70'
+              }`}
+          >
+            <Home size={22} strokeWidth={location.pathname === '/' ? 2.5 : 1.8} />
+            <span className="text-[10px] font-bold uppercase tracking-wide">Home</span>
+          </button>
+
+          {/* Practice – center hero button */}
+          <button
+            onClick={() => { if (!user) { setShowLoginModal(true); } else { navigate('/practice'); } }}
+            className="flex flex-col items-center gap-1 -mt-6"
+          >
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all ${location.pathname.startsWith('/practice')
+              ? 'bg-brand-orange text-white shadow-brand-orange/40 scale-105'
+              : 'bg-gradient-to-br from-brand-orange to-orange-400 text-white shadow-brand-orange/30'
+              }`}>
+              <Sparkles size={26} strokeWidth={2} />
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${location.pathname.startsWith('/practice') ? 'text-brand-orange' : 'text-brand-dark/50'
+              }`}>Practice</span>
+          </button>
+
+          {/* Profile */}
+          <button
+            onClick={() => { if (!user) { setShowLoginModal(true); } else { navigate('/dashboard'); } }}
+            className={`flex flex-col items-center gap-1 px-4 py-1.5 rounded-2xl transition-all ${location.pathname === '/dashboard' ? 'bg-brand-blue/10 text-brand-blue' : 'text-brand-dark/40 hover:text-brand-dark/70'
+              }`}
+          >
+            {user ? (
+              <div className="w-6 h-6 rounded-full bg-brand-dark text-white flex items-center justify-center font-bold text-xs overflow-hidden">
+                {user.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : user.name.charAt(0)}
+              </div>
+            ) : (
+              <UserIcon size={22} strokeWidth={1.8} />
+            )}
+            <span className="text-[10px] font-bold uppercase tracking-wide">Profile</span>
+          </button>
+        </div>
       </div>
 
       <Footer />
