@@ -197,3 +197,23 @@
 .nav-practice-btn:active {
   animation: navBounce 0.3s ease;
 }
+
+/* Dashboard Animations */
+@keyframes toastIn {
+  from {
+    transform: translate(-50%, -20px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.animate-toast-in {
+  animation: toastIn 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}

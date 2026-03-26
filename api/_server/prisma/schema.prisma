@@ -32,6 +32,7 @@ model Result {
   totalQuestions   Int      @default(0)
   mode            String
   subject         String?
+  topic           String?
   date            DateTime @default(now())
   quest           Quest?   @relation(fields: [questId], references: [id], map: "Result_questId_fkey")
   user            User     @relation(fields: [userId], references: [id], map: "Result_userId_fkey")
@@ -66,6 +67,7 @@ model User {
   quests                Quest[]
   results               Result[]
   redemptions           Redemption[]
+  studyPlans            StudyPlan[]
 }
 
 model Reward {
@@ -151,4 +153,34 @@ model PaperFile {
   createdAt DateTime @default(now())
 
   @@index([syllabus, grade, subject, year])
+}
+
+model StudyPlan {
+  id          String      @id @default(uuid())
+  userId      String
+  title       String
+  overview    String?     @db.Text
+  subject     String
+  grade       String
+  syllabus    String
+  timeframe   String
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id])
+  tasks       StudyTask[]
+
+  @@index([userId])
+}
+
+model StudyTask {
+  id          String    @id @default(uuid())
+  planId      String
+  weekNumber  Int
+  day         String    // e.g. "Day 1"
+  title       String
+  topicSearch String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  studyPlan   StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
 }

@@ -6,9 +6,10 @@ import { Button } from './components/Button';
 import { Card } from './components/Card';
 import { TeacherDashboard } from './components/TeacherDashboard';
 import { StudyPlanGenerator } from './components/StudyPlanGenerator';
+import { StudyProgress } from './components/StudyProgress';
 
 const API_BASE = '/api';
-import { BookOpen, Trophy, Star, Sparkles, Loader2, ArrowLeft, RefreshCw, ScrollText, CheckCircle2, Zap, Brain, Rocket, Lock, LogIn, Mail, GraduationCap, Coins, Gift, LogOut, User as UserIcon, ShieldCheck, Coffee, Plus, Target, Trash2, Save, HelpCircle, Calendar, Home } from 'lucide-react';
+import { BookOpen, Trophy, Star, Sparkles, Loader2, ArrowLeft, RefreshCw, ScrollText, CheckCircle2, Zap, Brain, Rocket, Lock, LogIn, Mail, GraduationCap, Coins, Gift, LogOut, User as UserIcon, ShieldCheck, Coffee, Plus, Target, Trash2, Save, HelpCircle, Calendar, Home, ArrowRight, ChevronRight } from 'lucide-react';
 import { useAuth } from './contexts/useAuth';
 import { PaymentForm } from './components/PaymentForm';
 import { LoginModal } from './components/LoginModal';
@@ -108,63 +109,6 @@ export default function App() {
     }
   }, [user]);
 
-  // Save stats whenever they change
-  useEffect(() => {
-    localStorage.setItem('quest_stats', JSON.stringify(stats));
-  }, [stats]);
-
-
-  // Deep Linking / Quick Start Effect
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const mode = query.get('mode');
-    const subject = query.get('subject') as Subject;
-    const grade = query.get('grade') as GradeLevel;
-    const syllabus = query.get('syllabus') as Syllabus;
-    const year = query.get('year');
-    const topic = query.get('topic');
-
-    if (mode === 'past_year' || mode === 'AI' || mode === 'custom') {
-      console.log("🔗 Deep link detected:", { mode, subject, grade, syllabus, year, topic });
-
-      if (syllabus && Object.values(Syllabus).includes(syllabus)) setSelectedSyllabus(syllabus);
-      if (grade && Object.values(GradeLevel).includes(grade)) setSelectedGrade(grade);
-      if (subject && Object.values(Subject).includes(subject)) setSelectedSubject(subject);
-
-      if (mode === 'past_year') {
-        setGameMode('PAST_YEAR');
-        if (year) setSelectedYear(year);
-        navigate('/practice');
-      } else if (mode === 'AI') {
-        setGameMode('AI');
-        if (topic) setSelectedTopic(topic);
-        navigate('/practice');
-      } else if (mode === 'custom') {
-        setGameMode('CUSTOM');
-        navigate('/practice');
-      }
-
-      // Clear URL params to avoid re-triggering on reload
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
-  // Sync stats from Server User
-  useEffect(() => {
-    if (user) {
-      setStats(prev => ({
-        ...prev,
-        xp: (user as any).xp !== undefined ? (user as any).xp : prev.xp,
-        coins: (user as any).coins !== undefined ? (user as any).coins : prev.coins,
-        completedQuizzes: user.completedQuizzes !== undefined ? user.completedQuizzes : prev.completedQuizzes,
-        questsPlayed: user.questsPlayed !== undefined ? user.questsPlayed : prev.questsPlayed,
-        level: (user as any).level !== undefined ? (user as any).level : prev.level
-      }));
-    }
-  }, [user]);
-
-  // Setup State
-
   // Setup State
   const [selectedSyllabus, setSelectedSyllabus] = useState<Syllabus | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -197,6 +141,119 @@ export default function App() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedPlanLevel, setSelectedPlanLevel] = useState<'single' | 'all'>('single');
   const [selectedSubscriptionSyllabus, setSelectedSubscriptionSyllabus] = useState<Syllabus | null>(null);
+  const [activeSession, setActiveSession] = useState<any | null>(null);
+  const [currentStudyPlan, setCurrentStudyPlan] = useState<any | null>(null);
+  const [loadingStudyPlan, setLoadingStudyPlan] = useState(false);
+  const [mustAutoStart, setMustAutoStart] = useState(false);
+
+  // Deep Linking / Quick Start Effect
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const mode = query.get('mode');
+    const subject = query.get('subject') as Subject;
+    const grade = query.get('grade') as GradeLevel;
+    const syllabus = query.get('syllabus') as Syllabus;
+    const year = query.get('year');
+    const topic = query.get('topic');
+    const autoStart = query.get('autoStart') === 'true';
+
+    if (mode === 'past_year' || mode === 'AI' || mode === 'custom') {
+      console.log("🔗 Deep link detected:", { mode, subject, grade, syllabus, year, topic, autoStart });
+
+      if (syllabus && Object.values(Syllabus).includes(syllabus)) setSelectedSyllabus(syllabus);
+      if (grade && Object.values(GradeLevel).includes(grade)) setSelectedGrade(grade);
+      if (subject && Object.values(Subject).includes(subject)) setSelectedSubject(subject);
+
+      if (mode === 'past_year') {
+        setGameMode('PAST_YEAR');
+        if (year) setSelectedYear(year);
+        if (autoStart) setMustAutoStart(true);
+        navigate('/practice');
+      } else if (mode === 'AI') {
+        setGameMode('AI');
+        if (topic) setSelectedTopic(topic);
+        if (autoStart) setMustAutoStart(true);
+        navigate('/practice');
+      } else if (mode === 'custom') {
+        setGameMode('CUSTOM');
+        if (autoStart) setMustAutoStart(true);
+        navigate('/practice');
+      }
+
+      // Clear URL params to avoid re-triggering on reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.search]);
+
+  // Handle Auto-Start triggering
+  useEffect(() => {
+    if (mustAutoStart && location.pathname === '/practice') {
+      // Check if required fields are ready based on mode
+      const isReady = 
+        (gameMode === 'AI' && selectedSubject && selectedGrade && selectedSyllabus && selectedTopic) ||
+        (gameMode === 'PAST_YEAR' && selectedSubject && selectedGrade && selectedSyllabus && selectedYear) ||
+        (gameMode === 'CUSTOM' && selectedCustomQuest);
+
+      if (isReady) {
+        console.log("🚀 Auto-starting game...");
+        setMustAutoStart(false);
+        handleStartGame();
+      }
+    }
+  }, [mustAutoStart, location.pathname, selectedSubject, selectedGrade, selectedSyllabus, selectedTopic, selectedYear, gameMode]);
+
+  // Sync stats from Server User
+  useEffect(() => {
+    if (user) {
+      setStats(prev => ({
+        ...prev,
+        xp: (user as any).xp !== undefined ? (user as any).xp : prev.xp,
+        coins: (user as any).coins !== undefined ? (user as any).coins : prev.coins,
+        completedQuizzes: user.completedQuizzes !== undefined ? user.completedQuizzes : prev.completedQuizzes,
+        questsPlayed: user.questsPlayed !== undefined ? user.questsPlayed : prev.questsPlayed,
+        level: (user as any).level !== undefined ? (user as any).level : prev.level
+      }));
+    }
+  }, [user]);
+
+  // Load active session on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('quest_active_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.questions && parsed.questions.length > 0) {
+          setActiveSession(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse active session", e);
+      }
+    }
+  }, []);
+
+  // Load study plan on mount/login
+  useEffect(() => {
+    if (user && location.pathname === '/dashboard') {
+      const fetchStudyPlan = async () => {
+        setLoadingStudyPlan(true);
+        try {
+          const token = localStorage.getItem('quest_token');
+          const res = await fetch('/api/study-plans/current', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCurrentStudyPlan(data);
+          }
+        } catch (e) {
+          console.error("Failed to load study plan", e);
+        } finally {
+          setLoadingStudyPlan(false);
+        }
+      };
+      fetchStudyPlan();
+    }
+  }, [user, location.pathname]);
 
   // Geolocation Effect
   useEffect(() => {
@@ -385,6 +442,9 @@ export default function App() {
         Subject.BUSINESS,
         Subject.ENGLISH,
         Subject.BAHASA_MELAYU,
+        Subject.COMPUTER_SCIENCE,
+        Subject.GEOGRAPHY,
+        Subject.SEJARAH
       ].includes(s.id as Subject));
     }
 
@@ -591,12 +651,12 @@ export default function App() {
   }, [location.pathname]);
 
   // Fetch syllabus whenever Subject or Grade changes
-  const fetchSyllabus = async () => {
+  const fetchSyllabus = async (isRefresh: boolean = false) => {
     if (!selectedSubject || !selectedSyllabus || !selectedGrade) {
       console.log("Skipping syllabus fetch: missing selections");
       return;
     }
-    console.log("🔄 Fetching syllabus for:", selectedSubject, selectedGrade, selectedSyllabus);
+    console.log("🔄 Fetching syllabus for:", selectedSubject, selectedGrade, selectedSyllabus, isRefresh ? '(REFRESH)' : '');
     setLoadingTopics(true);
     setTopics([]);
     setSelectedTopic(null);
@@ -734,6 +794,9 @@ export default function App() {
     }
 
     setLoadingGame(true);
+    // Clear any previous active session when starting fresh
+    localStorage.removeItem('quest_active_session');
+    setActiveSession(null);
 
     if (gameMode === 'CUSTOM') {
       if (!selectedCustomQuest) {
@@ -809,7 +872,8 @@ export default function App() {
             questId: selectedCustomQuest?.id,
             correctAnswers,
             totalQuestions: questions.length,
-            subject: gameMode === 'AI' ? selectedSubject : selectedCustomQuest?.subject
+            subject: gameMode === 'AI' ? selectedSubject : selectedCustomQuest?.subject,
+            topic: gameMode === 'AI' ? selectedTopic : undefined
           })
         });
         if (res.ok) {
@@ -861,6 +925,11 @@ export default function App() {
         // Ideally we update AuthContext user here
       });
     }
+
+    // Clear session on completion
+    localStorage.removeItem('quest_active_session');
+    setActiveSession(null);
+
     navigate('/dashboard');
   };
 
@@ -1033,6 +1102,41 @@ export default function App() {
         isSubscribed={user?.isSubscribed || false}
         currencyConfig={currencyConfig}
       />
+
+      {/* Active Quest Quick-Resume (Mobile & Desktop) */}
+      {activeSession && (
+        <div className="max-w-6xl mx-auto px-4 -mt-8 relative z-30">
+          <div className="p-6 bg-gradient-to-br from-brand-blue/10 via-brand-blue/5 to-white border-2 border-brand-blue/30 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-pop-in shadow-2xl shadow-brand-blue/10 group">
+             <div className="flex items-center gap-5 w-full md:w-auto">
+              <div className="w-14 h-14 bg-brand-blue rounded-2xl flex items-center justify-center text-white shadow-lg animate-float">
+                <Rocket size={28} />
+              </div>
+              <div className="text-left">
+                <span className="bg-brand-blue text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider mb-1 inline-block">Resume Quest</span>
+                <p className="font-display font-bold text-brand-dark text-xl leading-tight">Continue where you left off!</p>
+                <p className="text-xs text-brand-dark/60 font-medium mt-0.5">
+                  {activeSession?.subject} • Question {(activeSession?.currentIndex || 0) + 1} of {activeSession?.questions?.length || 0}
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="lg"
+              className="w-full md:w-auto shadow-xl shadow-brand-blue/20 bg-brand-blue hover:bg-brand-blue/90 animate-pulse-glow"
+              onClick={() => {
+                setQuestions(activeSession.questions);
+                setSelectedSubject(activeSession.subject);
+                setSelectedGrade(activeSession.grade);
+                setSelectedSyllabus(activeSession.syllabus);
+                setSelectedTopic(activeSession.topic);
+                setGameMode(activeSession.gameMode);
+                navigate('/practice/session');
+              }}
+            >
+              Continue Adventure <ArrowRight size={18} className="ml-2" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Quick Access Cards */}
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 relative z-20">
@@ -1321,97 +1425,250 @@ export default function App() {
   };
 
   const renderDashboard = () => (
-    <div className="max-w-4xl mx-auto space-y-8 pt-12 animate-float">
+    <div className="max-w-4xl mx-auto space-y-8 pt-12">
+
+      {/* Header and Stats Overview */}
       <div className="text-center">
         <div className="relative inline-block mb-4">
           <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 animate-pulse rounded-full"></div>
           <Trophy size={80} className="text-brand-accent relative z-10 mx-auto" />
         </div>
-        <h2 className="text-4xl font-display font-bold">Quest Complete!</h2>
-        <p className="text-brand-dark/60">Great job, {user?.name}!</p>
+        <h2 className="text-4xl font-display font-bold text-brand-dark">Student Dashboard</h2>
+        <p className="text-brand-dark/60 font-medium mb-8">Keep up the great work, {user?.name}!</p>
       </div>
 
-      {/* Level Card */}
-      <Card className="bg-white/80 p-6 flex items-center gap-5 shadow-lg border border-white/50">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-3xl shadow-lg shadow-brand-blue/30 shrink-0">
-          {stats.level}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+        {/* Level Card */}
+        <Card className="bg-white/80 p-6 flex items-center gap-4 shadow-sm border border-brand-dark/5 md:col-span-2">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-blue to-indigo-600 flex items-center justify-center text-white font-display font-bold text-xl shadow-lg shrink-0">
+            {stats.level}
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Lvl {stats.level}</p>
+            <p className="font-bold text-brand-dark truncate">{getLevelTitle(stats.level)}</p>
+          </div>
+        </Card>
+        
+        <Card className="p-4 flex items-center gap-3 border shadow-sm bg-white/80">
+          <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-brand-orange text-xl"><Zap size={20} fill="#f97316" /></div>
+          <div>
+            <p className="text-[10px] font-black opacity-30 uppercase tracking-widest">Streak</p>
+            <p className="font-bold text-brand-dark">{stats.streak} Days</p>
+          </div>
+        </Card>
+
+        <Card className="p-4 flex items-center gap-3 border shadow-sm bg-white/80">
+          <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 text-xl"><Coins size={20} fill="#ca8a04" /></div>
+          <div>
+            <p className="text-[10px] font-black opacity-30 uppercase tracking-widest">Coins</p>
+            <p className="font-bold text-brand-dark">{stats.coins}</p>
+          </div>
+        </Card>
+      </div>
+
+      {/* EXP bar simplified */}
+      <div className="px-1 mb-8">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <span className="text-[10px] font-black text-brand-dark/30 uppercase tracking-widest">Experience Progress</span>
+          <span className="text-[10px] font-black text-brand-blue italic">{xpIntoLevel}/{xpToNextLevel} XP</span>
         </div>
-        <div>
-          <p className="text-xs font-bold text-brand-dark/40 uppercase tracking-widest">Current Level</p>
-          <p className="font-display font-bold text-2xl text-brand-dark leading-tight">Level {stats.level}</p>
-          <p className="text-sm font-bold text-brand-blue">{getLevelTitle(stats.level)}</p>
+        <div className="h-2 bg-brand-dark/5 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-blue transition-all duration-1000" style={{ width: `${expPercent}%` }} />
         </div>
+      </div>
+
+      {/* Core Objective: Study Plan / Active Roadmap */}
+      <Card className="p-8 border-slate-200 bg-white shadow-xl shadow-slate-200/50 rounded-[2.5rem] overflow-hidden relative border-2 ring-4 ring-slate-50">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-brand-blue/10 rounded-2xl flex items-center justify-center text-brand-blue">
+              <Calendar size={28} />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-2xl tracking-tight">Active Roadmap</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Daily Learning Path</p>
+            </div>
+          </div>
+          {currentStudyPlan && (
+            <button 
+              onClick={() => navigate('/study-progress')}
+              className="px-4 py-2 rounded-xl bg-slate-50 text-slate-600 hover:text-brand-blue hover:bg-brand-blue/5 transition-all text-xs font-bold border border-slate-100 flex items-center gap-2"
+            >
+              Full Plan <ChevronRight size={16} />
+            </button>
+          )}
+        </div>
+
+        {!currentStudyPlan ? (
+          <div className="flex flex-col items-center justify-center text-center py-16 space-y-6 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-200">
+            <div className="w-20 h-20 bg-brand-blue/10 rounded-full flex items-center justify-center text-brand-blue animate-float">
+              <Plus size={40} />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">Ready to start your journey?</h3>
+              <p className="text-slate-400 font-medium max-w-[280px] mx-auto">Create a personalized study plan to track and master your daily missions.</p>
+            </div>
+            <Button size="lg" variant="primary" onClick={() => navigate('/study-plan')} className="rounded-2xl font-black bg-brand-blue shadow-xl shadow-brand-blue/30 px-10 py-6 transform hover:scale-105 transition-all">
+              <Plus size={20} className="mr-2" /> CREATE NEW PLAN
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            <div className="md:col-span-4 space-y-4">
+               <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 text-center">
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Current Progress</p>
+                  <p className="text-4xl font-black text-emerald-700 mb-2">{Math.round((currentStudyPlan.tasks.filter((t: any) => t.isCompleted).length / currentStudyPlan.tasks.length) * 100)}%</p>
+                  <div className="w-full h-2 bg-emerald-200/50 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-600 transition-all duration-1000" 
+                      style={{ width: `${(currentStudyPlan.tasks.filter((t: any) => t.isCompleted).length / currentStudyPlan.tasks.length) * 100}%` }} 
+                    />
+                  </div>
+               </div>
+            </div>
+            
+            <div className="md:col-span-8 space-y-4">
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest ml-1">Today's Priority Missions</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {currentStudyPlan.tasks.filter((t: any) => !t.isCompleted).slice(0, 2).map((task: any) => (
+                  <div key={task.id} className="p-5 rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col justify-between transition-all hover:border-brand-blue/30 group bg-white shadow-sm hover:shadow-md">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">{task.day}</span>
+                      </div>
+                      <p className="font-bold text-slate-800 text-sm leading-snug group-hover:text-brand-blue transition-colors line-clamp-2 h-10">{task.title}</p>
+                    </div>
+                    <Button 
+                      fullWidth
+                      size="sm" 
+                      className="h-10 text-xs font-black bg-brand-blue text-white rounded-xl shadow-md shadow-brand-blue/10 group-hover:bg-brand-blue/90"
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                            mode: 'AI',
+                            subject: currentStudyPlan.subject,
+                            grade: currentStudyPlan.grade,
+                            syllabus: currentStudyPlan.syllabus,
+                            topic: task.topicSearch,
+                            autoStart: 'true'
+                        });
+                        navigate(`/practice?${params.toString()}`);
+                      }}
+                    >
+                      EXECUTE
+                    </Button>
+                  </div>
+                ))}
+                {currentStudyPlan.tasks.filter((t: any) => !t.isCompleted).length === 0 && (
+                  <div className="sm:col-span-2 p-10 rounded-[2rem] bg-emerald-50 border-2 border-dashed border-emerald-200 text-center">
+                    <p className="text-sm font-black text-emerald-600 uppercase tracking-widest">Mastery Achieved for Today! ✨</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </Card>
 
-      {/* EXP Bar */}
-      <div className="bg-white/80 backdrop-blur rounded-3xl p-6 shadow-lg border border-white/50">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-brand-dark/40 uppercase tracking-wide flex items-center gap-1">
-            <Star size={12} /> Experience
-          </span>
-          <p className="font-bold text-sm text-brand-dark">
-            <span className="text-brand-blue">{xpIntoLevel}</span>
-            <span className="text-brand-dark/30"> / {xpToNextLevel} XP</span>
-          </p>
-        </div>
-        <div className="relative w-full bg-brand-dark/5 rounded-full h-5 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-brand-blue via-indigo-500 to-purple-500 transition-all duration-1000 ease-out relative overflow-hidden"
-            style={{ width: `${expPercent}%` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-[shimmer_2s_ease-in-out_infinite]" />
+      {/* Resume Session UI */}
+      {activeSession && (
+        <div className="p-6 bg-gradient-to-br from-brand-blue/10 via-brand-blue/5 to-white border-2 border-brand-blue/30 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6 animate-pop-in relative overflow-hidden group shadow-2xl shadow-brand-blue/10 mb-8 mt-2">
+          {/* Animated background element */}
+          <div className="absolute -right-4 -bottom-4 opacity-10 pointer-events-none group-hover:scale-125 group-hover:rotate-12 transition-all duration-700">
+            <Rocket size={160} className="text-brand-blue" />
           </div>
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-brand-dark/40">{expPercent}%</span>
-        </div>
-        <p className="text-xs text-brand-dark/40 font-bold mt-2 text-right">
-          {xpToNextLevel - xpIntoLevel} XP to Level {stats.level + 1}
-        </p>
-      </div>
-
-      {/* Day Streak + Gold Coins */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-white/80 p-6 flex flex-col items-center justify-center">
-          <div className="p-3 bg-orange-100 rounded-full text-brand-orange mb-2"><Trophy /></div>
-          <div className="text-4xl font-bold text-brand-orange mb-1">{stats.streak}</div>
-          <div className="text-sm font-bold uppercase text-brand-dark/50">Day Streak</div>
-        </Card>
-        <Card className="bg-white/80 p-6 flex flex-col items-center justify-center border-2 border-yellow-400/20">
-          <div className="p-3 bg-yellow-100 rounded-full text-yellow-600 mb-2"><Coins /></div>
-          <div className="text-4xl font-bold text-yellow-600 mb-1">{stats.coins || 0}</div>
-          <div className="text-sm font-bold uppercase text-brand-dark/50">Gold Coins</div>
-        </Card>
-      </div>
-
-      {stats.badges.length > 0 && (
-        <div className="bg-white/50 p-6 rounded-3xl">
-          <h3 className="font-bold text-xl mb-4 text-center">Your Badges</h3>
-          <div className="flex flex-wrap gap-4 justify-center">
-            {stats.badges.map((badge, idx) => (
-              <div key={idx} className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-2 border border-brand-dark/5 px-4">
-                <span className="text-2xl">🏅</span>
-                <span className="font-bold text-sm">{badge}</span>
+          
+          <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
+            <div className="w-16 h-16 bg-brand-blue rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-blue/30 flex-shrink-0 animate-float">
+              <Rocket size={32} />
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-brand-blue text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">In Progress</span>
+                <p className="font-display font-bold text-brand-dark text-2xl leading-tight">Your Adventure Awaits!</p>
               </div>
-            ))}
+              <p className="text-brand-dark/60 font-medium">
+                {activeSession?.subject} • {activeSession?.grade} • <span className="text-brand-blue font-bold">Question {(activeSession?.currentIndex || 0) + 1}</span> of {activeSession?.questions?.length || 0}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 w-full md:w-auto relative z-10">
+            <button 
+              onClick={() => {
+                if(window.confirm("Discard this quest? Your progress will be lost.")) {
+                  localStorage.removeItem('quest_active_session');
+                  setActiveSession(null);
+                }
+              }}
+              className="flex-1 md:flex-none text-sm font-bold text-brand-dark/30 hover:text-red-500 transition-colors py-3 px-6 hover:bg-red-50 rounded-xl"
+            >
+              Discard
+            </button>
+            <Button 
+              size="lg"
+              className="flex-1 md:flex-none shadow-xl shadow-brand-blue/30 bg-brand-blue hover:bg-brand-blue/90 transform hover:scale-105 transition-all py-6 md:py-4 px-8 animate-pulse-glow"
+              onClick={() => {
+                setQuestions(activeSession.questions);
+                setSelectedSubject(activeSession.subject);
+                setSelectedGrade(activeSession.grade);
+                setSelectedSyllabus(activeSession.syllabus);
+                setSelectedTopic(activeSession.topic);
+                setGameMode(activeSession.gameMode);
+                navigate('/practice/session');
+              }}
+            >
+              Continue Quest <ArrowRight size={20} className="ml-2" />
+            </Button>
           </div>
         </div>
       )}
 
-      <div className="mt-8">
-        <DataAnalysis token={localStorage.getItem('quest_token') || ''} />
+      {/* Secondary Information Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20 mt-4">
+        {stats.badges.length > 0 && (
+          <div className="bg-white/50 p-6 rounded-3xl col-span-1 md:col-span-2">
+            <h3 className="font-bold text-xl mb-4 text-center">Your Badges</h3>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {stats.badges.map((badge, idx) => (
+                <div key={idx} className="bg-white p-3 rounded-xl shadow-sm flex items-center gap-2 border border-brand-dark/5 px-4">
+                  <span className="text-2xl">🏅</span>
+                  <span className="font-bold text-sm">{badge}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-6 md:col-span-2">
+          <DataAnalysis token={localStorage.getItem('quest_token') || ''} />
+        </div>
       </div>
 
-      <div className="flex gap-4 justify-center">
-        <Button variant="outline" onClick={() => navigate('/')}>Home</Button>
-        <Button onClick={handleNewQuest}>New Quest</Button>
+      {/* Global Dashboard Actions - Repositioned to Bottom per User Request */}
+      <div className="flex flex-wrap items-center justify-center gap-4 py-8 border-t border-brand-dark/5 mt-4">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate('/')}
+          className="rounded-2xl px-10 py-4 font-bold border-brand-dark/10 text-brand-dark/60 hover:text-brand-dark hover:bg-slate-50 transition-all flex items-center gap-2 bg-white/50 backdrop-blur-sm"
+        >
+          <Home size={20} /> Home
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={handleNewQuest}
+          className="rounded-2xl px-10 py-4 font-bold bg-brand-blue shadow-xl shadow-brand-blue/20 flex items-center gap-2 transform active:scale-95 transition-all"
+        >
+          <Plus size={20} /> New Quest
+        </Button>
       </div>
-
-      {/* Activity Feed and Next Goals side-by-side */}
     </div>
   );
 
 
   const renderGameSetup = () => (
-    <div className="max-w-4xl mx-auto pb-28 md:pb-8 animate-float">
+    <div className="max-w-4xl mx-auto pb-28 md:pb-8">
       <div className="flex items-center gap-3 mb-6">
         <Button variant="outline" size="sm" onClick={() => navigate('/')}>
           <ArrowLeft size={18} /> Back
@@ -1573,8 +1830,12 @@ export default function App() {
             <div className="flex justify-between items-center mb-3">
               <label className="block text-sm font-bold text-brand-dark/60 uppercase tracking-wider">4. Select Topic</label>
               {selectedSubject && selectedGrade && (
-                <button onClick={fetchSyllabus} className="text-xs text-brand-blue flex items-center gap-1 hover:underline">
-                  <RefreshCw size={12} /> Refresh Topics
+                <button 
+                  onClick={() => fetchSyllabus(true)} 
+                  className={`text-xs text-brand-blue flex items-center gap-1 hover:underline disabled:opacity-50`}
+                  disabled={loadingTopics}
+                >
+                  <RefreshCw size={12} className={loadingTopics ? 'animate-spin' : ''} /> Refresh Topics
                 </button>
               )}
             </div>
@@ -1596,7 +1857,7 @@ export default function App() {
                     <button
                       key={idx}
                       onClick={() => setSelectedTopic(topic)}
-                      className={`p-3 text-left rounded-xl border-2 font-bold transition-all text-sm ${selectedTopic === topic ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'}`}
+                      className={`p-3 text-left rounded-xl border-2 font-bold transition-all text-sm leading-snug ${selectedTopic === topic ? 'border-brand-accent bg-orange-50 text-brand-accent shadow-sm' : 'border-brand-dark/10 bg-white/50 hover:bg-white hover:border-brand-dark/20'}`}
                     >
                       {topic}
                     </button>
@@ -1710,7 +1971,27 @@ export default function App() {
     <GameSession
       questions={questions}
       onComplete={handleGameComplete}
-      onExit={() => navigate('/')}
+      onExit={() => {
+        // Clear session on manual exit to avoid confusing "Resume" later if they explicitly quit
+        localStorage.removeItem('quest_active_session');
+        setActiveSession(null);
+        navigate('/');
+      }}
+      initialState={activeSession}
+      onStateChange={(state) => {
+        // Save session state to localStorage
+        const sessionData = {
+          ...state,
+          questions,
+          subject: selectedSubject,
+          grade: selectedGrade,
+          syllabus: selectedSyllabus,
+          topic: selectedTopic,
+          gameMode,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('quest_active_session', JSON.stringify(sessionData));
+      }}
     />
   );
 
@@ -1933,6 +2214,7 @@ export default function App() {
           <Route path="/practice" element={<ProtectedRoute>{renderGameSetup()}</ProtectedRoute>} />
           <Route path="/practice/session" element={<ProtectedRoute>{renderGameSession()}</ProtectedRoute>} />
           <Route path="/study-plan" element={<ProtectedRoute><div className="pt-8"><StudyPlanGenerator /></div></ProtectedRoute>} />
+          <Route path="/study-progress" element={<ProtectedRoute><div className="pt-8"><StudyProgress /></div></ProtectedRoute>} />
           <Route path="/teacher" element={<ProtectedRoute>{renderTeacherDashboard()}</ProtectedRoute>} />
           <Route path="*" element={renderHome()} />
         </Routes>
@@ -1956,11 +2238,17 @@ export default function App() {
             onClick={() => { if (!user) { setShowLoginModal(true); } else { navigate('/practice'); } }}
             className="flex flex-col items-center gap-1 -mt-6"
           >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all ${location.pathname.startsWith('/practice')
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all relative ${location.pathname.startsWith('/practice')
               ? 'bg-brand-orange text-white shadow-brand-orange/40 scale-105'
               : 'bg-gradient-to-br from-brand-orange to-orange-400 text-white shadow-brand-orange/30'
               }`}>
               <Sparkles size={26} strokeWidth={2} />
+              {activeSession && !location.pathname.startsWith('/practice/session') && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-ping" />
+              )}
+              {activeSession && !location.pathname.startsWith('/practice/session') && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full" />
+              )}
             </div>
             <span className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${location.pathname.startsWith('/practice') ? 'text-brand-orange' : 'text-brand-dark/50'
               }`}>Practice</span>

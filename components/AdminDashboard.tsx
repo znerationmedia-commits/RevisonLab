@@ -102,6 +102,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
     const [showRewardModal, setShowRewardModal] = useState(false);
     const [editingReward, setEditingReward] = useState<Reward | null>(null);
     const [rewardImageUrl, setRewardImageUrl] = useState<string | null>(null);
+    const [userSearchQuery, setUserSearchQuery] = useState('');
+    const [userSortOrder, setUserSortOrder] = useState<'default' | 'accuracy-desc' | 'accuracy-asc' | 'xp-desc'>('default');
+
 
     // Paper Files state
     const [paperFiles, setPaperFiles] = useState<any[]>([]);
@@ -375,47 +378,97 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ token }) => {
         );
     };
 
-    const renderUsers = () => (
-        <div className="grid grid-cols-1 gap-3">
-            {users.map(u => (
-                <div key={u.id} onClick={() => handleSelectUser(u)} className="bg-white rounded-2xl p-5 flex items-center gap-6 border border-brand-dark/5 hover:border-brand-blue/30 hover:shadow-lg transition-all cursor-pointer group">
-                    <div className="w-12 h-12 rounded-2xl bg-brand-dark/5 flex items-center justify-center text-brand-dark font-display font-bold text-lg shrink-0 group-hover:bg-brand-blue group-hover:text-white transition-colors">
-                        {u.name[0].toUpperCase()}
+    const renderUsers = () => {
+        const filteredUsers = users
+            .filter(u => 
+                u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || 
+                u.email.toLowerCase().includes(userSearchQuery.toLowerCase())
+            )
+            .sort((a, b) => {
+                if (userSortOrder === 'accuracy-desc') return b.accuracy - a.accuracy;
+                if (userSortOrder === 'accuracy-asc') return a.accuracy - b.accuracy;
+                if (userSortOrder === 'xp-desc') return b.xp - a.xp;
+                return 0; // default (current state is usually xp-desc from backend)
+            });
+
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-dark/20" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Search students by name or email..."
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            className="w-full bg-white border border-brand-dark/5 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-medium outline-none focus:ring-2 ring-brand-blue/20 shadow-sm transition-all"
+                        />
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <p className="font-bold text-brand-dark">{u.name}</p>
-                            {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
-                        </div>
-                        <p className="text-[10px] text-brand-dark/40 font-medium truncate uppercase tracking-tighter">{u.email}</p>
-                        {u.subjectsDone && u.subjectsDone.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                                {u.subjectsDone.slice(0, 3).map((s, i) => (
-                                    <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-bold border border-blue-100 uppercase">
-                                        {s}
-                                    </span>
-                                ))}
-                                {u.subjectsDone.length > 3 && <span className="text-[8px] text-brand-dark/30 font-bold">+{u.subjectsDone.length - 3}</span>}
-                            </div>
-                        )}
+                    <div className="flex items-center gap-2">
+                        <Filter className="text-brand-dark/30" size={18} />
+                        <select
+                            value={userSortOrder}
+                            onChange={(e) => setUserSortOrder(e.target.value as any)}
+                            className="bg-white border border-brand-dark/5 rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:ring-2 ring-brand-blue/20 shadow-sm appearance-none cursor-pointer pr-10 relative"
+                            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\' /%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
+                        >
+                            <option value="default">Default (XP)</option>
+                            <option value="accuracy-desc">Accuracy (High → Low)</option>
+                            <option value="accuracy-asc">Accuracy (Low → High)</option>
+                            <option value="xp-desc">Most XP</option>
+                        </select>
                     </div>
-                    <div className="hidden md:flex items-center gap-8 text-center">
-                        <div>
-                            <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Questions</p>
-                            <p className="font-bold text-sm tracking-tighter">{u.totalQuestions}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Accuracy</p>
-                            <p className={`font-bold text-sm ${u.accuracy > 80 ? 'text-green-500' : u.accuracy > 50 ? 'text-brand-orange' : 'text-red-500'}`}>
-                                {u.accuracy}%
-                            </p>
-                        </div>
-                    </div>
-                    <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
                 </div>
-            ))}
-        </div>
-    );
+
+                <div className="grid grid-cols-1 gap-3">
+                    {filteredUsers.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-3xl border border-brand-dark/5">
+                            <Search className="mx-auto text-brand-dark/10 mb-4" size={48} />
+                            <p className="text-brand-dark/30 font-bold italic">No students match your search</p>
+                        </div>
+                    ) : (
+                        filteredUsers.map(u => (
+                            <div key={u.id} onClick={() => handleSelectUser(u)} className="bg-white rounded-2xl p-5 flex items-center gap-6 border border-brand-dark/5 hover:border-brand-blue/30 hover:shadow-lg transition-all cursor-pointer group">
+                                <div className="w-12 h-12 rounded-2xl bg-brand-dark/5 flex items-center justify-center text-brand-dark font-display font-bold text-lg shrink-0 group-hover:bg-brand-blue group-hover:text-white transition-colors">
+                                    {u.name[0].toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-brand-dark">{u.name}</p>
+                                        {u.isSubscribed && <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-brand-orange/10 text-brand-orange font-bold uppercase">PRO</span>}
+                                    </div>
+                                    <p className="text-[10px] text-brand-dark/40 font-medium truncate uppercase tracking-tighter">{u.email}</p>
+                                    {u.subjectsDone && u.subjectsDone.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {u.subjectsDone.slice(0, 3).map((s, i) => (
+                                                <span key={i} className="text-[8px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-bold border border-blue-100 uppercase">
+                                                    {s}
+                                                </span>
+                                            ))}
+                                            {u.subjectsDone.length > 3 && <span className="text-[8px] text-brand-dark/30 font-bold">+{u.subjectsDone.length - 3}</span>}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="hidden md:flex items-center gap-8 text-center">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Questions</p>
+                                        <p className="font-bold text-sm tracking-tighter">{u.totalQuestions}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-brand-dark/30 uppercase mb-0.5">Accuracy</p>
+                                        <p className={`font-bold text-sm ${u.accuracy > 80 ? 'text-green-500' : u.accuracy > 50 ? 'text-brand-orange' : 'text-red-500'}`}>
+                                            {u.accuracy}%
+                                        </p>
+                                    </div>
+                                </div>
+                                <ChevronRight size={20} className="text-brand-dark/20 group-hover:text-brand-blue group-hover:translate-x-1 transition-all" />
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     const renderPapers = () => (
         <div className="space-y-8">

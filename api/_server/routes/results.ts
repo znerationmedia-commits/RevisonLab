@@ -10,7 +10,7 @@ router.use(authenticateToken, checkExpiredSubscriptions);
 
 // Save a game result
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
-    const { score, mode, questId, correctAnswers, totalQuestions, subject } = req.body;
+    const { score, mode, questId, correctAnswers, totalQuestions, subject, topic } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -33,6 +33,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
                 totalQuestions: totalQuestions || 0,
                 correctAnswers: correctAnswers || 0,
                 subject: subject || undefined,
+                topic: topic || undefined,
                 questId: questId || undefined
             }
         });

@@ -259,6 +259,7 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
             const examName = (() => {
                 const s = syllabus.toLowerCase();
                 const g = grade.toLowerCase();
+                if (s.includes('uec')) return 'UEC (Unified Examination Certificate)'; 
                 if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
                     if (g.includes('form 5')) return 'SPM (Sijil Pelajaran Malaysia)';
                     if (g.includes('form 3')) return 'PT3 (Pentaksiran Tingkatan 3)';
@@ -272,47 +273,82 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
                 return syllabus;
             })();
 
+            // Language Selection for UEC & National Exams
+            const targetLanguage = (() => {
+                const s = syllabus.toLowerCase();
+                const sub = subject.toLowerCase();
+                if (s.includes('uec')) {
+                    if (sub.includes('bahasa melayu') || sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
+                    if (sub.includes('english')) return 'English';
+                    return 'Simplified Chinese (简体中文)';
+                }
+                if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
+                    if (sub.includes('english')) return 'English';
+                    return 'Bahasa Melayu (Malay)';
+                }
+                return 'English';
+            })();
+
             prompt = `You are an expert exam question compiler with comprehensive knowledge of official past year exam papers.
 
-TASK: Reproduce 25 actual multiple-choice questions from the official ${examName} ${year} paper for ${subject} at ${grade} level.
+TASK: Reproduce 15-20 actual multiple-choice questions from the official ${examName} ${year} paper for ${subject} at ${grade} level.
 
 CRITICAL RULES — READ CAREFULLY:
-1. RECALL REAL QUESTIONS: You were trained on official ${examName} past year papers published before your cutoff. Reproduce questions that genuinely appeared in or are extremely representative of the actual ${year} ${subject} paper. Do NOT invent generic revision questions.
-2. CORRECT ANSWERS MUST BE 100% ACCURATE: Every correctAnswerIndex must be provably correct based on the official answer scheme. Wrong answers here are a serious failure.
-3. REALISTIC DISTRACTORS: The wrong options must be the same plausible misconceptions that students commonly choose in the real exam — not obviously wrong choices.
-4. YEAR-SPECIFIC EMPHASIS: Reflect the specific topics stressed in the ${year} paper. For example, if SPM 2022 Biology heavily tested cell division, include those questions.
-5. FULL PAPER COVERAGE: Distribute questions across the main chapters/topics of ${subject} at ${grade} level — do not cluster around one topic.
-6. DIFFICULTY SPREAD: Include approximately 8 easy, 10 medium, and 7 challenging questions — matching the real paper's difficulty curve.
+1. LANGUAGE: The entire question, options, and explanation MUST be written in ${targetLanguage}. This is strict.
+2. RECALL REAL QUESTIONS: You were trained on official ${examName} past year papers published before your cutoff. Reproduce questions that genuinely appeared in or are extremely representative of the actual ${year} ${subject} paper. Do NOT invent generic revision questions.
+3. CORRECT ANSWERS MUST BE 100% ACCURATE: Every correctAnswerIndex must be provably correct based on the official answer scheme. Wrong answers here are a serious failure.
+4. REALISTIC DISTRACTORS: The wrong options must be the same plausible misconceptions that students commonly choose in the real exam — not obviously wrong choices.
+5. YEAR-SPECIFIC EMPHASIS: Reflect the specific topics stressed in the ${year} paper.
+6. FULL PAPER COVERAGE: Distribute questions across the main chapters/topics of ${subject} at ${grade} level.
+7. DIFFICULTY SPREAD: Include approximately 8 easy, 10 medium, and 7 challenging questions.
 
 Syllabus-specific rules:
-${syllabus.toLowerCase().includes('kssr') || syllabus.toLowerCase().includes('malaysian') ? `- Follow Malaysian DSKP/${examName.includes('SPM') ? 'SPM' : examName.includes('PT3') ? 'PT3' : 'KSSR'} standards exactly.
-- Use correct Malaysian terminology (e.g. "tindak balas" not "reaction" for BM subjects).
-- SPM Paper 1 is all MCQ — 40 questions, 1 mark each. Match this format.` : ''}
-${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('cambridge') ? `- Use the official Cambridge ${subject} syllabus code and follow the mark scheme conventions.
-- Match Cambridge command words exactly (state, describe, explain, calculate, deduce, suggest).
-- Core and Extended tier questions should be mixed.` : ''}
-${syllabus.toLowerCase().includes('singapore') ? `- Follow Singapore MOE O-Level syllabus structure.
-- Match SEAB question phrasings and answer key conventions.` : ''}
+${syllabus.toLowerCase().includes('kssr') || syllabus.toLowerCase().includes('malaysian') ? `- Follow Malaysian DSKP standards exactly.
+- Use correct Malaysian terminology.
+- SPM Paper 1 is all MCQ.` : ''}
+${syllabus.toLowerCase().includes('uec') ? `- Follow Dong Zong (UEC) standards and terminology for ${grade}.
+- Use official UEC subject naming conventions.` : ''}
+${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('cambridge') ? `- Use the official Cambridge ${subject} syllabus code.
+- Match Cambridge command words exactly (state, describe, explain).` : ''}
 
 `;
         } else {
+            // General Generation Language
+            const targetLanguage = (() => {
+                const s = syllabus.toLowerCase();
+                const sub = subject.toLowerCase();
+                if (s.includes('uec')) {
+                    if (sub.includes('bahasa melayu') || sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
+                    if (sub.includes('english')) return 'English';
+                    return 'Simplified Chinese (简体中文)';
+                }
+                if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
+                    if (sub.includes('english')) return 'English';
+                    return 'Bahasa Melayu (Malay)';
+                }
+                return 'English';
+            })();
+
             prompt = `Generate a set of high-quality multiple-choice questions for:
             - Subject: ${subject}
             - Grade: ${grade}
             - Topic: ${topic}
             - Syllabus: ${syllabus}
+            - Target Language: ${targetLanguage}
             
             CRITICAL INSTRUCTIONS:
-            1. Format: ${grade} level, ${syllabus} standards
-            2. Content: 4 options (A-D), correct index (0-3)
+            1. Language: Write the entire output (questions, options, explanations) in ${targetLanguage}.
+            2. Format: ${grade} level, ${syllabus} standards
+            3. Content: 4 options (A-D), correct index (0-3)
             `;
         }
 
         prompt += `
         GENERAL QUALITY RULES:
-        1. QUANTITY: Generate EXACTLY 25 questions. No fewer.
-        2. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
-        3. Explanation Quality: Each explanation MUST be specific to the question. It must:
+        1. QUANTITY: Generate 15-20 questions. No fewer than 15.
+        2. RANDOMIZED ANSWERS: Ensure the correct answer (correctAnswerIndex) is evenly distributed among 0, 1, 2, and 3 across the entire set of questions. For example, in a set of 20 questions, roughly 5 should have index 0 (A), 5 should have index 1 (B), 5 should have index 2 (C), and 5 should have index 3 (D). Do NOT put the correct answer in the same position for every question.
+        3. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
+        4. Explanation Quality: Each explanation MUST be specific to the question. It must:
            - Directly state WHY the correct answer is right (cite the specific law, formula, fact, or rule)
            - Briefly explain why a common wrong choice is misleading
            - Be 2-3 sentences maximum. Do NOT write generic study notes.
@@ -362,7 +398,30 @@ ${syllabus.toLowerCase().includes('singapore') ? `- Follow Singapore MOE O-Level
             }));
 
             console.log(`✅ [GEN] Generated ${formattedQuestions.length} questions with Gemini`);
-            return res.json(formattedQuestions);
+            
+            // ─── ROBUST OPTION SHUFFLING ───────────────────────────────────
+            // Ensure the correct answer is randomized (A, B, C, or D) for every question
+            const randomizedQuestions = formattedQuestions.map((q: any) => {
+                const options = [...q.options];
+                const correctOptionText = options[q.correctAnswerIndex];
+                
+                // Fisher-Yates Shuffle
+                for (let i = options.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [options[i], options[j]] = [options[j], options[i]];
+                }
+                
+                // Find new index of the correct answer
+                const newCorrectIndex = options.indexOf(correctOptionText);
+                
+                return {
+                    ...q,
+                    options,
+                    correctAnswerIndex: newCorrectIndex !== -1 ? newCorrectIndex : q.correctAnswerIndex
+                };
+            });
+
+            return res.json(randomizedQuestions);
         } catch (error: any) {
             console.error("❌ [GEN] Error:", error.message);
             return res.status(500).json({
@@ -378,8 +437,8 @@ ${syllabus.toLowerCase().includes('singapore') ? `- Follow Singapore MOE O-Level
 });
 
 router.post('/syllabus', async (req, res) => {
-    const { subject, grade, syllabus } = req.body;
-    console.log(`[SYLLABUS] Request: ${subject} / ${grade} / ${syllabus}`);
+    const { subject, grade, syllabus, forceRefresh } = req.body;
+    console.log(`[SYLLABUS] Request: ${subject} / ${grade} / ${syllabus}${forceRefresh ? ' (FORCE REFRESH)' : ''}`);
 
     if (isMockMode()) {
         console.log(`✅ [SYLLABUS] Using mock mode, returning mock data`);
@@ -387,16 +446,20 @@ router.post('/syllabus', async (req, res) => {
     }
 
     try {
-        // 1. Check DB Cache
-        const cached = await prisma.courseSyllabus.findUnique({
-            where: {
-                subject_grade_syllabus: { subject, grade, syllabus }
-            }
-        });
+        // 1. Check DB Cache (Skip if forceRefresh is true)
+        if (!forceRefresh) {
+            const cached = await prisma.courseSyllabus.findUnique({
+                where: {
+                    subject_grade_syllabus: { subject, grade, syllabus }
+                }
+            });
 
-        if (cached) {
-            console.log(`✅ [SYLLABUS] Found cached syllabus`);
-            return res.json(JSON.parse(cached.topics));
+            if (cached) {
+                console.log(`✅ [SYLLABUS] Found cached syllabus`);
+                return res.json(JSON.parse(cached.topics));
+            }
+        } else {
+            console.log(`[SYLLABUS] Bypassing cache due to forceRefresh`);
         }
 
         // AI SYLLABUS GENERATION with Gemini
@@ -408,15 +471,20 @@ router.post('/syllabus', async (req, res) => {
         - Syllabus/Curriculum: ${syllabus}
 
         INSTRUCTIONS:
-        1. Base this on the OFFICIAL current curriculum
-        2. For KSSR/KSSM (Malaysian), align with latest DSKP standards
-        3. For IGCSE, align with Cambridge curriculum
-        4. Include 12-20 key topics
+        1. Base this on the OFFICIAL current curriculum.
+        2. For KSSR/KSSM (Malaysian), align with latest DSKP standards.
+        3. For IGCSE, align with Cambridge curriculum.
+        4. For UEC, align with Dong Zong standards.
+        5. Include 10-20 key topics to ensure full coverage. 
+        6. STRICT FORMATTING: Each topic MUST start with "Topic X: " (e.g., Topic 1, Topic 2).
+        7. DETAILED STRUCTURE: Include the main sub-topics in parentheses.
+           Example: "Topic 1: Quadratic Functions (Graphs, Roots, Completing the Square)"
+        8. UNIVERSAL APPLICABILITY: This must work for ANY subject (Mathematics, Computer Science, Biology, Languages, etc.).
 
         JSON SPECIFICATION:
         Return ONLY a JSON object with a "topics" key containing a flat array of strings.
         Example:
-        {"topics": ["Chapter 1: Topic Name", "Chapter 2: Topic Name"]}
+        {"topics": ["Topic 1: Topic Name (Subtopic A, Subtopic B)", "Topic 2: Topic Name (Subtopic C)"]}
         `;
 
         let responseText;
@@ -516,12 +584,21 @@ router.post('/study-plan', authenticateToken, checkExpiredSubscriptions, async (
                 {
                     weekNumber: 1,
                     focus: "Foundational Concepts",
-                    tasks: ["Review Chapter 1", "Complete 10 practice questions", "Watch tutorial video"]
-                },
-                {
-                    weekNumber: 2,
-                    focus: "Advanced Applications",
-                    tasks: ["Take mock test 1", "Review mistakes", "Read Chapter 2"]
+                    days: [
+                        { 
+                            day: "Day 1", 
+                            tasks: [
+                                { title: "Review Chapter 1: Real Numbers", topicSearch: "Real Numbers" },
+                                { title: "Complete 10 MCQs on Fractions", topicSearch: "Fractions" }
+                            ] 
+                        },
+                        { 
+                            day: "Day 2", 
+                            tasks: [
+                                { title: "Practice Algebra basics", topicSearch: "Algebra" }
+                            ] 
+                        }
+                    ]
                 }
             ],
             tips: ["Stay hydrated", "Take short breaks"]
@@ -541,27 +618,39 @@ router.post('/study-plan', authenticateToken, checkExpiredSubscriptions, async (
         - Daily Study Commitment: ${hoursPerDay} hours per day
         - Additional Goals/Focus: ${goals || 'General mastery and exam preparation'}
 
-        INSTRUCTIONS:
-        1. Break the plan down logically into weeks (or phases if the timeframe is short like a few days).
-        2. Assign specific, actionable tasks for each period based on the official curriculum of the chosen syllabus.
-        3. Be realistic about what can be achieved in ${hoursPerDay} hours per day.
-        4. Include a general overview of the strategy.
-        5. Provide 3-5 actionable study tips specific to this subject and grade.
+        - Commitment: ${hoursPerDay} hours per day
+        ${goals ? `- Specific Goals: ${goals}` : ""}
 
-        JSON SPECIFICATION:
-        Return ONLY a JSON object with the following exact structure:
+        IMPORTANT: Keep it simple and clean. Use MINIMAL words. 
+        - Title should be very short (max 5 words).
+        - Overview should be max 2 sentences.
+        - Task titles should be extremely concise (max 4-5 words).
+        - Provide max 3 high-impact tips.
+
+        Return ONLY a JSON object with this structure:
         {
-          "title": "A catchy title for the plan",
-          "overview": "A short paragraph explaining the overall strategy",
+          "title": "Short Course Title",
+          "overview": "Brief 1-2 sentence strategy.",
           "weeks": [
             {
               "weekNumber": 1,
-              "focus": "Main topic/theme for the week",
-              "tasks": ["Task 1", "Task 2"]
+              "focus": "Short Weekly Focus",
+              "days": [
+                {
+                  "day": "Day 1",
+                  "tasks": [
+                    { "title": "Concise task description", "topicSearch": "Exact topic name for practice" }
+                  ]
+                }
+              ]
             }
           ],
-          "tips": ["Tip 1", "Tip 2"]
         }
+        
+        CRITICAL: 
+        1. Each task MUST be an object with "title" and "topicSearch".
+        2. "topicSearch" should be a 1-3 word keyword that represents the mathematical or academic topic (e.g., "Algebra", "Calculus", "Probability", "Human Rights", "Volcanoes"). This will be used to deep-link the student to specific practice questions.
+        3. Give tasks like "Complete 10 MCQ questions on [Topic]", "Review [Topic] theory", etc.
         `;
 
         let responseText;
@@ -584,6 +673,47 @@ router.post('/study-plan', authenticateToken, checkExpiredSubscriptions, async (
             return res.status(500).json({ error: "AI returned invalid JSON." });
         }
 
+        // --- NEW: Persist the Study Plan ---
+        if (userId && planData.weeks) {
+            try {
+                // We'll replace the existing plan for this subject/grade if it exists, 
+                // or just keep one active plan overall. The prompt suggests a simpler clean tracking.
+                // Let's replace any existing plan for the SAME user to keep it clean.
+                await prisma.studyPlan.deleteMany({
+                    where: { userId }
+                });
+
+                const createdPlan = await prisma.studyPlan.create({
+                    data: {
+                        userId,
+                        title: planData.title,
+                        overview: planData.overview,
+                        subject,
+                        grade,
+                        syllabus,
+                        timeframe,
+                        tasks: {
+                            create: planData.weeks.flatMap((week: any) => 
+                                week.days.flatMap((day: any) => 
+                                    day.tasks.map((task: any) => ({
+                                        weekNumber: parseInt(String(week.weekNumber)),
+                                        day: day.day,
+                                        title: task.title,
+                                        topicSearch: task.topicSearch
+                                    }))
+                                )
+                            )
+                        }
+                    }
+                });
+                console.log(`✅ [STUDY-PLAN] Saved to DB (ID: ${createdPlan.id})`);
+                planData.id = createdPlan.id; // Return the ID to the client
+            } catch (dbErr) {
+                console.error("❌ [STUDY-PLAN] DB Save Error:", dbErr);
+                // We don't fail the request if saving fails, but alert in logs
+            }
+        }
+
         console.log(`✅ [STUDY-PLAN] Generated successfully`);
         return res.json(planData);
     } catch (error: any) {
@@ -591,5 +721,6 @@ router.post('/study-plan', authenticateToken, checkExpiredSubscriptions, async (
         return res.status(500).json({ error: "Failed to generate study plan." });
     }
 });
+
 
 export default router;

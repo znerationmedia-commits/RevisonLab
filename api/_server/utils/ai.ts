@@ -53,7 +53,7 @@ export async function generateAIContent(
                     temperature: 0.4,
                     topP: 0.95,
                     topK: 40,
-                    max_output_tokens: 4096,
+                    max_output_tokens: 8192,
                     response_mime_type: responseMimeType
                 }
             })

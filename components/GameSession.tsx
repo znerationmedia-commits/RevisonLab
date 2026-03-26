@@ -9,15 +9,45 @@ interface GameSessionProps {
   questions: Question[];
   onComplete: (score: number, correctAnswers: number) => void;
   onExit: () => void;
+  initialState?: {
+    currentIndex: number;
+    score: number;
+    correctAnswersCount: number;
+    streak: number;
+  };
+  onStateChange?: (state: {
+    currentIndex: number;
+    score: number;
+    correctAnswersCount: number;
+    streak: number;
+  }) => void;
 }
 
-export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete, onExit }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export const GameSession: React.FC<GameSessionProps> = ({ 
+  questions, 
+  onComplete, 
+  onExit,
+  initialState,
+  onStateChange
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(initialState?.currentIndex || 0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
-  const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
+  const [score, setScore] = useState(initialState?.score || 0);
+  const [correctAnswersCount, setCorrectAnswersCount] = useState(initialState?.correctAnswersCount || 0);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(initialState?.streak || 0);
+
+  // Monitor state changes and bubble up
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        currentIndex,
+        score,
+        correctAnswersCount,
+        streak
+      });
+    }
+  }, [currentIndex, score, correctAnswersCount, streak, onStateChange]);
 
   const currentQuestion = questions[currentIndex];
   const isLastQuestion = currentIndex === questions.length - 1;
@@ -165,8 +195,8 @@ export const GameSession: React.FC<GameSessionProps> = ({ questions, onComplete,
                     <><span className="text-3xl">🎉</span> Awesome Job!</> :
                     <><span className="text-3xl">💪</span> Nice try! Keep going!</>}
                 </h3>
-                <Button onClick={handleNext} variant="primary" className="shrink-0 w-full md:w-auto shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
-                  {isLastQuestion ? 'Finish Quest' : 'Next Question'} <ArrowRight size={18} />
+                <Button onClick={handleNext} variant="primary" className="shrink-0 w-full md:w-auto shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all animate-pulse-glow">
+                  {isLastQuestion ? 'Finish Quest' : 'Continue Quest'} <ArrowRight size={18} />
                 </Button>
               </div>
 

@@ -45,6 +45,8 @@ router.post('/signup', async (req, res) => {
             }
         });
 
+
+
         // Send real email
         const emailSent = await sendOTPEmail(email, verificationCode);
 
@@ -148,9 +150,6 @@ router.post('/resend-otp', async (req, res) => {
 
         // Send real email
         const emailSent = await sendOTPEmail(email, verificationCode);
-
-        // ALWAYS log to file for local testing help
-        require('fs').writeFileSync('otp_test_fallback.txt', `LAST OTP FOR ${email}: ${verificationCode}\n`);
 
         res.json({ message: 'New verification code sent. If email fails, check server/otp_test_fallback.txt', email });
     } catch (error) {

@@ -93,7 +93,7 @@ const generateContent = async (subject: Subject, grade: GradeLevel, topic: strin
   }
 };
 
-const generateSyllabus = async (subject: Subject, grade: GradeLevel, syllabus: Syllabus): Promise<string[]> => {
+const generateSyllabus = async (subject: Subject, grade: GradeLevel, syllabus: Syllabus, forceRefresh?: boolean): Promise<string[]> => {
   if (isMockMode) {
     return generateMockSyllabus(subject, grade, syllabus);
   }
@@ -106,7 +106,7 @@ const generateSyllabus = async (subject: Subject, grade: GradeLevel, syllabus: S
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ subject, grade, syllabus }),
+      body: JSON.stringify({ subject, grade, syllabus, forceRefresh }),
     });
 
     if (!response.ok) throw new Error('Failed to fetch syllabus');
@@ -132,7 +132,10 @@ export interface StudyPlanResponse {
   weeks: {
     weekNumber: number | string;
     focus: string;
-    tasks: string[];
+    days: {
+      day: string;
+      tasks: { title: string; topicSearch: string }[];
+    }[];
   }[];
   tips: string[];
 }
@@ -147,7 +150,22 @@ const generateStudyPlan = async (params: StudyPlanRequest): Promise<StudyPlanRes
         {
           weekNumber: 1,
           focus: "Foundational Concepts",
-          tasks: ["Review Chapter 1", "Complete 10 practice questions"]
+          days: [
+            { 
+              day: "Day 1", 
+              tasks: [
+                { title: "Review Chapter 1", topicSearch: "Real Numbers" },
+                { title: "Complete 5 practice questions", topicSearch: "Fractions" }
+              ] 
+            },
+            { 
+              day: "Day 2", 
+              tasks: [
+                { title: "Review Chapter 2", topicSearch: "Algebra" },
+                { title: "Complete 5 practice questions", topicSearch: "Algebra" }
+              ] 
+            }
+          ]
         }
       ],
       tips: ["Stay hydrated", "Take short breaks"]

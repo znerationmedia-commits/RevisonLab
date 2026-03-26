@@ -18,10 +18,20 @@ router.get('/', async (req, res) => {
         console.log(`[API] Found ${quests.length} quests`);
 
         // Parse questions string back to JSON for frontend
-        const parsedQuests = quests.map(q => ({
-            ...q,
-            questions: JSON.parse(q.questions)
-        }));
+        const parsedQuests = quests.map(q => {
+            try {
+                return {
+                    ...q,
+                    questions: JSON.parse(q.questions)
+                };
+            } catch (e) {
+                console.error(`[API] Failed to parse questions for quest ${q.id}:`, e);
+                return {
+                    ...q,
+                    questions: []
+                };
+            }
+        });
         res.json(parsedQuests);
     } catch (error) {
         console.error('[API] Error fetching quests:', error);

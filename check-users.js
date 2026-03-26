@@ -5,7 +5,7 @@ async function checkUsers() {
     try {
         const users = await prisma.user.findMany({
             take: 5,
-            select: { email: true, name: true, isVerified: true }
+            select: { email: true, name: true, isVerified: true, isAdmin: true }
         });
         console.log("Current Users Status:");
         console.table(users);

@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Subject, Syllabus, GradeLevel } from '../types';
-import { geminiService, StudyPlanRequest, StudyPlanResponse } from '../services/geminiService';
+import { geminiService, StudyPlanResponse } from '../services/geminiService';
 import { Button } from './Button';
 import { Card } from './Card';
-import { Calendar, Loader2, Sparkles, Clock, Target, CheckCircle2, BookOpen, ArrowLeft } from 'lucide-react';
+import { 
+    Calendar, 
+    Loader2, 
+    Sparkles, 
+    Target, 
+    CheckCircle2, 
+    ArrowLeft, 
+    ChevronRight,
+    GraduationCap,
+    Clock,
+    BookOpen
+} from 'lucide-react';
 
 export const StudyPlanGenerator: React.FC = () => {
     const navigate = useNavigate();
@@ -12,15 +23,16 @@ export const StudyPlanGenerator: React.FC = () => {
     const [grade, setGrade] = useState<string>('');
     const [syllabus, setSyllabus] = useState<string>('');
     const [timeframe, setTimeframe] = useState<string>('4 Weeks');
-    const [hoursPerDay, setHoursPerDay] = useState<string>('2');
+    const [hoursPerDay] = useState<string>('2');
     const [goals, setGoals] = useState<string>('');
 
+    const [studyPlan, setStudyPlan] = useState<StudyPlanResponse | null>(null);
+    const [generatedId, setGeneratedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [studyPlan, setStudyPlan] = useState<StudyPlanResponse | null>(null);
 
     const handleGenerate = async () => {
-        if (!subject || !grade || !syllabus || !timeframe || !hoursPerDay) {
+        if (!subject || !grade || !syllabus || !timeframe) {
             setError('Please fill in all required fields.');
             return;
         }
@@ -36,209 +48,193 @@ export const StudyPlanGenerator: React.FC = () => {
                 hoursPerDay,
                 goals
             });
+            
             setStudyPlan(plan);
-        } catch (err: any) {
-            if (err.message === 'USER_LIMIT_REACHED') {
-                setError('You have reached your free AI generation limit. Please upgrade to Pro.');
-            } else {
-                setError(err.message || 'Failed to generate study plan. Please try again.');
+            if (plan && (plan as any).id) {
+                setGeneratedId((plan as any).id);
             }
+        } catch (err: any) {
+            setError(err.message || 'Failed to generate study plan. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-4 mb-4">
-                <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-                    <ArrowLeft size={16} /> Back
-                </Button>
-            </div>
+    const handleReset = () => {
+        setStudyPlan(null);
+        setGeneratedId(null);
+        setGoals('');
+    };
 
-            <div className="text-center space-y-3 mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-brand-blue/10 text-brand-blue mb-4">
-                    <Calendar size={32} />
-                </div>
-                <h2 className="text-4xl font-display font-bold text-brand-dark">AI Study Plan Generator</h2>
-                <p className="text-brand-dark/60 font-medium">Let our AI build a personalized, day-by-day roadmap to help you ace your exams.</p>
-            </div>
+    const handleContinue = () => {
+        if (generatedId) {
+            navigate(`/study-progress?id=${generatedId}`);
+        } else {
+            navigate('/study-progress');
+        }
+    };
 
-            {!studyPlan ? (
-                <Card className="p-6 md:p-8 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Syllabus</label>
-                            <select
-                                value={syllabus}
-                                onChange={(e) => setSyllabus(e.target.value)}
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                            >
-                                <option value="" disabled>Select Syllabus...</option>
-                                {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Grade Level</label>
-                            <select
-                                value={grade}
-                                onChange={(e) => setGrade(e.target.value)}
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                            >
-                                <option value="" disabled>Select Grade...</option>
-                                {Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Target Subject</label>
-                            <select
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                            >
-                                <option value="" disabled>Select Subject...</option>
-                                {Object.values(Subject).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Timetable Length</label>
-                            <select
-                                value={timeframe}
-                                onChange={(e) => setTimeframe(e.target.value)}
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                            >
-                                <option value="1 Week">1 Week (Crash Course)</option>
-                                <option value="2 Weeks">2 Weeks</option>
-                                <option value="4 Weeks">1 Month (Recommended)</option>
-                                <option value="2 Months">2 Months</option>
-                                <option value="3 Months">3 Months (Deep Prep)</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Hours per Day</label>
-                            <select
-                                value={hoursPerDay}
-                                onChange={(e) => setHoursPerDay(e.target.value)}
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all"
-                            >
-                                <option value="1">1 Hour</option>
-                                <option value="2">2 Hours</option>
-                                <option value="3">3 Hours</option>
-                                <option value="4">4 Hours (Intensive)</option>
-                                <option value="5+">5+ Hours (Full Time)</option>
-                            </select>
-                        </div>
-
-                        <div className="space-y-2 md:col-span-2">
-                            <label className="text-sm font-bold text-brand-dark/70 uppercase tracking-wide">Specific Goals (Optional)</label>
-                            <input
-                                type="text"
-                                value={goals}
-                                onChange={(e) => setGoals(e.target.value)}
-                                placeholder="e.g. Focus on organic chemistry, improve MCQs, etc."
-                                className="w-full p-4 rounded-xl border-2 border-brand-dark/10 bg-gray-50/50 font-medium focus:ring-2 focus:ring-brand-blue/20 outline-none transition-all text-sm"
-                            />
-                        </div>
+    if (studyPlan) {
+        return (
+            <div className="max-w-xl mx-auto py-20 px-4">
+                <Card className="p-10 text-center space-y-8 border-slate-200 shadow-sm rounded-3xl bg-white">
+                    <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle2 size={48} />
                     </div>
-
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-100 flex items-center gap-2">
-                            <span>⚠️</span> {error}
-                        </div>
-                    )}
-
-                    <Button
-                        size="lg"
-                        fullWidth
-                        onClick={handleGenerate}
-                        disabled={loading || !subject || !grade || !syllabus}
-                        className="py-5 text-lg shadow-xl shadow-brand-blue/20 mt-4 group"
-                    >
-                        {loading ? (
-                            <><Loader2 className="animate-spin mr-2" /> Architecting your plan...</>
-                        ) : (
-                            <><Sparkles className="mr-2 group-hover:scale-110 transition-transform" /> Generate My Study Plan</>
-                        )}
-                    </Button>
+                    <div className="space-y-3">
+                        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Plan Ready!</h2>
+                        <p className="text-slate-500 text-lg">Your study roadmap for <b>{subject}</b> has been generated.</p>
+                    </div>
+                    <div className="pt-4 space-y-3">
+                        <Button 
+                            onClick={handleContinue} 
+                            size="lg" 
+                            className="w-full rounded-2xl py-6 text-lg font-bold bg-brand-blue"
+                        >
+                            Open Roadmap
+                        </Button>
+                        <button 
+                            onClick={handleReset}
+                            className="text-slate-400 font-semibold text-sm hover:text-slate-600 transition-colors"
+                        >
+                            Create Another Plan
+                        </button>
+                    </div>
                 </Card>
-            ) : (
-                <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-                    <Card className="p-8 bg-gradient-to-br from-brand-blue to-indigo-600 text-white shadow-2xl overflow-hidden relative border-0">
-                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl mix-blend-overlay" />
+            </div>
+        );
+    }
 
-                        <div className="relative z-10 space-y-4">
-                            <h3 className="text-3xl font-display font-bold">{studyPlan.title}</h3>
-                            <p className="text-white/80 text-lg leading-relaxed">{studyPlan.overview}</p>
+    return (
+        <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
+            <div className="max-w-4xl mx-auto space-y-12">
+                <div className="flex items-center justify-between">
+                    <button 
+                        onClick={() => navigate(-1)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-slate-500 hover:text-slate-900 bg-white border border-slate-200 shadow-sm transition-all"
+                    >
+                        <ArrowLeft size={18} />
+                        <span className="text-sm font-bold">Back</span>
+                    </button>
+                    <div className="px-4 py-2 bg-brand-blue/10 border border-brand-blue/20 rounded-xl text-[10px] font-bold text-brand-blue uppercase tracking-widest">
+                        Study Assistant
+                    </div>
+                </div>
 
-                            <div className="flex flex-wrap gap-4 pt-4">
-                                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
-                                    <Target size={16} /> {subject}
-                                </span>
-                                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
-                                    <Clock size={16} /> {timeframe} ({hoursPerDay}h/day)
-                                </span>
+                <div className="space-y-2 text-center md:text-left">
+                    <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Create Study Plan</h1>
+                    <p className="text-slate-500 font-medium">Define your goals and we'll map out a custom syllabus for you.</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <Card className="lg:col-span-2 p-8 border-slate-200 shadow-sm rounded-3xl bg-white space-y-10">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <BookOpen size={14} className="text-brand-blue" /> Exam Syllabus
+                                </label>
+                                <select
+                                    value={syllabus}
+                                    onChange={(e) => setSyllabus(e.target.value)}
+                                    className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-brand-blue outline-none transition-all font-bold text-slate-700 bg-slate-50/50"
+                                >
+                                    <option value="" disabled>Select Syllabus</option>
+                                    {Object.values(Syllabus).map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
                             </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <GraduationCap size={14} className="text-brand-blue" /> Grade Level
+                                </label>
+                                <select
+                                    value={grade}
+                                    onChange={(e) => setGrade(e.target.value)}
+                                    className="w-full p-4 rounded-2xl border-2 border-slate-100 focus:border-brand-blue outline-none transition-all font-bold text-slate-700 bg-slate-50/50"
+                                >
+                                    <option value="" disabled>Select Grade</option>
+                                    {Object.values(GradeLevel).map(g => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="space-y-4 md:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                    <Target size={14} className="text-brand-blue" /> Focus Subject
+                                </label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {Object.values(Subject).map(s => (
+                                        <button
+                                            key={s}
+                                            onClick={() => setSubject(s)}
+                                            className={`p-4 rounded-2xl border-2 font-bold text-xs transition-all ${
+                                                subject === s 
+                                                ? 'bg-brand-blue text-white border-brand-blue shadow-md' 
+                                                : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300 hover:text-slate-600'
+                                            }`}
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4">
+                            <Button
+                                size="lg"
+                                fullWidth
+                                onClick={handleGenerate}
+                                disabled={loading || !subject || !grade || !syllabus}
+                                className="py-6 text-xl font-bold rounded-2xl bg-brand-blue transition-all"
+                            >
+                                {loading ? (
+                                    <span className="flex items-center gap-3">
+                                        <Loader2 className="animate-spin" size={24} /> Generating Plan...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        <Sparkles size={20} /> Create Roadmap
+                                    </span>
+                                )}
+                            </Button>
+                            {error && (
+                                <p className="mt-4 text-center text-red-500 font-bold text-xs uppercase tracking-widest bg-red-50 p-3 rounded-xl border border-red-100">
+                                    Error: {error}
+                                </p>
+                            )}
                         </div>
                     </Card>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-2 space-y-6">
-                            <h4 className="text-2xl font-bold text-brand-dark ml-2">Weekly Schedule</h4>
-                            <div className="space-y-4">
-                                {studyPlan.weeks.map((week, idx) => (
-                                    <Card key={idx} className="p-6 border-2 border-brand-dark/5 hover:border-brand-blue/30 transition-colors">
-                                        <div className="flex items-start gap-4">
-                                            <div className="shrink-0 w-12 h-12 bg-blue-50 text-brand-blue rounded-2xl flex items-center justify-center font-bold text-xl shadow-inner">
-                                                W{week.weekNumber}
-                                            </div>
-                                            <div className="space-y-3 flex-1">
-                                                <h5 className="font-bold text-lg text-brand-dark">{week.focus}</h5>
-                                                <ul className="space-y-2">
-                                                    {week.tasks.map((task, tIdx) => (
-                                                        <li key={tIdx} className="flex items-start gap-2 text-brand-dark/70 text-sm">
-                                                            <CheckCircle2 size={16} className="text-brand-green shrink-0 mt-0.5" />
-                                                            <span className="leading-snug">{task}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </Card>
+                    <Card className="p-8 border-slate-200 shadow-sm rounded-3xl bg-white space-y-8">
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                <Clock size={14} className="text-brand-blue" /> Duration
+                            </label>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['1 Week', '4 Weeks', '8 Weeks'].map(t => (
+                                    <button 
+                                        key={t}
+                                        onClick={() => setTimeframe(t)}
+                                        className={`p-4 rounded-xl text-sm font-bold transition-all border-2 text-left ${timeframe === t ? 'bg-brand-blue/5 border-brand-blue text-brand-blue' : 'bg-slate-50 border-transparent text-slate-400 hover:border-slate-200'}`}
+                                    >
+                                        {t}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="space-y-6">
-                            <h4 className="text-2xl font-bold text-brand-dark ml-2">Pro Tips</h4>
-                            <Card className="p-6 bg-orange-50/50 border-2 border-brand-orange/10">
-                                <ul className="space-y-4">
-                                    {studyPlan.tips.map((tip, idx) => (
-                                        <li key={idx} className="flex items-start gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-brand-orange text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
-                                                {idx + 1}
-                                            </div>
-                                            <p className="text-sm text-brand-dark/80 font-medium leading-relaxed">{tip}</p>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </Card>
-
-                            <Button
-                                variant="outline"
-                                fullWidth
-                                onClick={() => setStudyPlan(null)}
-                                className="border-brand-dark/20 hover:bg-gray-50"
-                            >
-                                Generate Another Plan
-                            </Button>
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Specific Goals</label>
+                            <textarea 
+                                value={goals}
+                                onChange={(e) => setGoals(e.target.value)}
+                                placeholder="E.g. Focus on Algebra..."
+                                className="w-full bg-slate-50 border-2 border-transparent rounded-2xl p-4 text-sm text-slate-700 placeholder:text-slate-300 outline-none focus:border-brand-blue focus:bg-white h-32 resize-none transition-all"
+                            />
                         </div>
-                    </div>
+                    </Card>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
