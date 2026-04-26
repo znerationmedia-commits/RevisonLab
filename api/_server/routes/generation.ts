@@ -22,13 +22,15 @@ enum Subject {
     ADD_MATH = 'Additional Mathematics',
     COMPUTER_SCIENCE = 'Computer Science',
     BAHASA_MELAYU = 'Bahasa Melayu',
-    ENGLISH = 'English',
+    ENGLISH = 'English Language',
     SEJARAH = 'Sejarah (History)',
     GEOGRAPHY = 'Geografi',
-    ECONOMICS = 'Economics',
-    BUSINESS = 'Business Studies',
+    ECONOMICS = 'Ekonomi',
+    BUSINESS = 'Perniagaan (Business)',
+    ACCOUNTING = 'Prinsip Perakaunan (Accounting)',
     EDUCATION_ISLAM = 'Pendidikan Islam',
     EDUCATION_MORAL = 'Pendidikan Moral',
+    PJPK = 'Pendidikan Jasmani & Kesihatan (PJPK)',
     RBT = 'Reka Bentuk & Teknologi (RBT)'
 }
 
@@ -36,7 +38,7 @@ enum Subject {
 const getSubjectCategory = (subject: string) => {
     const stem = [Subject.MATH, Subject.SCIENCE, Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY, Subject.ADD_MATH, Subject.COMPUTER_SCIENCE];
     const langs = [Subject.BAHASA_MELAYU, Subject.ENGLISH];
-    const hums = [Subject.SEJARAH, Subject.GEOGRAPHY, Subject.ECONOMICS, Subject.BUSINESS];
+    const hums = [Subject.SEJARAH, Subject.GEOGRAPHY, Subject.ECONOMICS, Subject.BUSINESS, Subject.ACCOUNTING];
     if (stem.includes(subject as Subject)) return 'STEM';
     if (langs.includes(subject as Subject)) return 'LANGS';
     if (hums.includes(subject as Subject)) return 'HUMS';
@@ -45,7 +47,7 @@ const getSubjectCategory = (subject: string) => {
 
 // Mock Generation Logic (Server Side) 
 const generateMockQuestions = (subject: string, grade: string, topic: string, syllabus: string) => {
-    return Array.from({ length: 15 }).map((_, i) => ({
+    return Array.from({ length: 10 }).map((_, i) => ({
         id: `mock-${Date.now()}-${i}`,
         text: `[Server Mock] ${topic} Question ${i + 1} for ${grade}`,
         options: ["A", "B", "C", "D"],
@@ -277,13 +279,15 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
             const targetLanguage = (() => {
                 const s = syllabus.toLowerCase();
                 const sub = subject.toLowerCase();
+                
+                if (sub.includes('bahasa melayu') || sub.includes('malay')) return 'Bahasa Melayu (Malay)';
+                if (sub.includes('english')) return 'English';
+
                 if (s.includes('uec')) {
-                    if (sub.includes('bahasa melayu') || sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
-                    if (sub.includes('english')) return 'English';
+                    if (sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
                     return 'Simplified Chinese (简体中文)';
                 }
                 if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
-                    if (sub.includes('english')) return 'English';
                     return 'Bahasa Melayu (Malay)';
                 }
                 return 'English';
@@ -291,16 +295,16 @@ router.post('/quest', authenticateToken, checkExpiredSubscriptions, async (req: 
 
             prompt = `You are an expert exam question compiler with comprehensive knowledge of official past year exam papers.
 
-TASK: Reproduce 15-20 actual multiple-choice questions from the official ${examName} ${year} paper for ${subject} at ${grade} level.
+TASK: Reproduce EXACTLY 10 actual multiple-choice questions from the official ${examName} ${year} paper for ${subject} at ${grade} level.
 
 CRITICAL RULES — READ CAREFULLY:
-1. LANGUAGE: The entire question, options, and explanation MUST be written in ${targetLanguage}. This is strict.
+1. LANGUAGE: The ENTIRE question, options, and explanation MUST be STRICTLY written in ${targetLanguage}. This is NON-NEGOTIABLE.
 2. RECALL REAL QUESTIONS: You were trained on official ${examName} past year papers published before your cutoff. Reproduce questions that genuinely appeared in or are extremely representative of the actual ${year} ${subject} paper. Do NOT invent generic revision questions.
 3. CORRECT ANSWERS MUST BE 100% ACCURATE: Every correctAnswerIndex must be provably correct based on the official answer scheme. Wrong answers here are a serious failure.
 4. REALISTIC DISTRACTORS: The wrong options must be the same plausible misconceptions that students commonly choose in the real exam — not obviously wrong choices.
 5. YEAR-SPECIFIC EMPHASIS: Reflect the specific topics stressed in the ${year} paper.
 6. FULL PAPER COVERAGE: Distribute questions across the main chapters/topics of ${subject} at ${grade} level.
-7. DIFFICULTY SPREAD: Include approximately 8 easy, 10 medium, and 7 challenging questions.
+7. DIFFICULTY SPREAD: Include approximately 3 easy, 4 medium, and 3 challenging questions.
 
 Syllabus-specific rules:
 ${syllabus.toLowerCase().includes('kssr') || syllabus.toLowerCase().includes('malaysian') ? `- Follow Malaysian DSKP standards exactly.
@@ -317,13 +321,15 @@ ${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('c
             const targetLanguage = (() => {
                 const s = syllabus.toLowerCase();
                 const sub = subject.toLowerCase();
+                
+                if (sub.includes('bahasa melayu') || sub.includes('malay')) return 'Bahasa Melayu (Malay)';
+                if (sub.includes('english')) return 'English';
+
                 if (s.includes('uec')) {
-                    if (sub.includes('bahasa melayu') || sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
-                    if (sub.includes('english')) return 'English';
+                    if (sub.includes('sejarah')) return 'Bahasa Melayu (Malay)';
                     return 'Simplified Chinese (简体中文)';
                 }
                 if (s.includes('kssr') || s.includes('kssm') || s.includes('malaysian')) {
-                    if (sub.includes('english')) return 'English';
                     return 'Bahasa Melayu (Malay)';
                 }
                 return 'English';
@@ -337,7 +343,7 @@ ${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('c
             - Target Language: ${targetLanguage}
             
             CRITICAL INSTRUCTIONS:
-            1. Language: Write the entire output (questions, options, explanations) in ${targetLanguage}.
+            1. Language: The ENTIRE output (questions, options, explanations) MUST be STRICTLY written in ${targetLanguage}. This is NON-NEGOTIABLE.
             2. Format: ${grade} level, ${syllabus} standards
             3. Content: 4 options (A-D), correct index (0-3)
             `;
@@ -345,9 +351,9 @@ ${syllabus.toLowerCase().includes('igcse') || syllabus.toLowerCase().includes('c
 
         prompt += `
         GENERAL QUALITY RULES:
-        1. QUANTITY: Generate 15-20 questions. No fewer than 15.
-        2. RANDOMIZED ANSWERS: Ensure the correct answer (correctAnswerIndex) is evenly distributed among 0, 1, 2, and 3 across the entire set of questions. For example, in a set of 20 questions, roughly 5 should have index 0 (A), 5 should have index 1 (B), 5 should have index 2 (C), and 5 should have index 3 (D). Do NOT put the correct answer in the same position for every question.
-        3. Simplicity: Use ONLY basic alphanumeric characters and standard punctuation. AVOID complex nesting or unusual symbols.
+        1. QUANTITY: Generate EXACTLY 10 questions. No fewer than 10.
+        2. RANDOMIZED ANSWERS: Ensure the correct answer (correctAnswerIndex) is evenly distributed among 0, 1, 2, and 3 across the entire set of questions. For example, in a set of 10 questions, roughly 2-3 should have index 0 (A), 2-3 should have index 1 (B), 2-3 should have index 2 (C), and 2-3 should have index 3 (D). Do NOT put the correct answer in the same position for every question.
+        3. Simplicity and Math Formatting: Use basic alphanumeric characters. AVOID complex nesting. VERY IMPORTANT: If you must use LaTeX for math symbols (like in Additional Mathematics), you MUST double-escape all backslashes (e.g., \\\\frac{1}{2} instead of \\frac{1}{2}, \\\\pi instead of \\pi) so that the JSON remains valid.
         4. Explanation Quality: Each explanation MUST be specific to the question. It must:
            - Directly state WHY the correct answer is right (cite the specific law, formula, fact, or rule)
            - Briefly explain why a common wrong choice is misleading

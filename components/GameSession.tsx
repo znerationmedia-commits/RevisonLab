@@ -3,6 +3,7 @@ import { GameState, Question, UserStats } from '../types';
 import { Button } from './Button';
 import { Card } from './Card';
 import { CheckCircle, XCircle, Award, ArrowRight, Brain, Lightbulb, Volume2, Coins } from 'lucide-react';
+import { LatexRenderer } from './LatexRenderer';
 
 
 interface GameSessionProps {
@@ -146,7 +147,7 @@ export const GameSession: React.FC<GameSessionProps> = ({
         </div>
 
         <h2 className="text-2xl md:text-3xl font-display font-bold text-brand-dark mb-8 relative z-10 leading-snug">
-          {currentQuestion.text}
+          <LatexRenderer text={currentQuestion.text} />
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
@@ -173,10 +174,12 @@ export const GameSession: React.FC<GameSessionProps> = ({
                 disabled={selectedOption !== null}
                 fullWidth
               >
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm font-bold transition-colors ${selectedOption === idx ? 'bg-white/20 text-white' : 'bg-brand-dark/10 text-brand-dark/60'}`}>
+                <span className={`w-8 h-8 rounded-full flex shrink-0 items-center justify-center mr-3 text-sm font-bold transition-colors ${selectedOption === idx ? 'bg-white/20 text-white' : 'bg-brand-dark/10 text-brand-dark/60'}`}>
                   {String.fromCharCode(65 + idx)}
                 </span>
-                {option}
+                <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                  <LatexRenderer text={option} />
+                </div>
                 {icon}
               </Button>
             );
@@ -204,7 +207,7 @@ export const GameSession: React.FC<GameSessionProps> = ({
                 <div className="bg-red-100/50 p-4 rounded-xl border border-red-200 icon-shake">
                   <span className="text-xs font-bold text-red-600 uppercase tracking-wide">Correct Answer:</span>
                   <p className="font-bold text-lg text-brand-dark mt-1">
-                    {currentQuestion.options[currentQuestion.correctAnswerIndex]}
+                    <LatexRenderer text={currentQuestion.options[currentQuestion.correctAnswerIndex]} />
                   </p>
                 </div>
               )}
@@ -228,8 +231,8 @@ export const GameSession: React.FC<GameSessionProps> = ({
                     <p key={i} className={line.startsWith('Step') ? 'mb-2' : ''}>
                       {line.split(/(\*\*.*?\*\*)/).map((part, j) =>
                         part.startsWith('**') && part.endsWith('**') ?
-                          <strong key={j} className="text-brand-blue">{part.slice(2, -2)}</strong> :
-                          part
+                          <strong key={j} className="text-brand-blue"><LatexRenderer text={part.slice(2, -2)} /></strong> :
+                          <LatexRenderer key={j} text={part} />
                       )}
                     </p>
                   ))}

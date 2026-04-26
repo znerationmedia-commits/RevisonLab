@@ -49,6 +49,7 @@ const SUBJECTS = [
   { id: Subject.GEOGRAPHY, icon: <span className="text-2xl">🌍</span>, color: 'bg-emerald-100' },
   { id: Subject.PENDIDIKAN_ISLAM, icon: <span className="text-2xl">🕌</span>, color: 'bg-green-50' },
   { id: Subject.PENDIDIKAN_MORAL, icon: <span className="text-2xl">🤝</span>, color: 'bg-pink-100' },
+  { id: Subject.PJPK, icon: <span className="text-2xl">🏃‍♂️</span>, color: 'bg-red-50' },
   { id: Subject.RBT, icon: <span className="text-2xl">🛠️</span>, color: 'bg-gray-100' },
   { id: Subject.ADD_MATH, icon: <span className="text-2xl">∫dx</span>, color: 'bg-red-100' },
   { id: Subject.PHYSICS, icon: <span className="text-2xl">⚛️</span>, color: 'bg-purple-100' },
@@ -56,6 +57,7 @@ const SUBJECTS = [
   { id: Subject.BIOLOGY, icon: <span className="text-2xl">🦠</span>, color: 'bg-teal-100' },
   { id: Subject.ECONOMICS, icon: <span className="text-2xl">📈</span>, color: 'bg-cyan-100' },
   { id: Subject.BUSINESS, icon: <span className="text-2xl">💼</span>, color: 'bg-amber-100' },
+  { id: Subject.ACCOUNTING, icon: <span className="text-2xl">🧮</span>, color: 'bg-indigo-50' },
   { id: Subject.COMPUTER_SCIENCE, icon: <span className="text-2xl">💻</span>, color: 'bg-slate-200' },
 ];
 
@@ -503,6 +505,7 @@ export default function App() {
         Subject.SCIENCE,
         Subject.PENDIDIKAN_ISLAM,
         Subject.PENDIDIKAN_MORAL,
+        Subject.PJPK,
       ].includes(s.id as Subject));
     }
     if (grade === GradeLevel.STD_4 || grade === GradeLevel.STD_5 || grade === GradeLevel.STD_6) {
@@ -515,6 +518,7 @@ export default function App() {
         Subject.RBT,
         Subject.PENDIDIKAN_ISLAM,
         Subject.PENDIDIKAN_MORAL,
+        Subject.PJPK,
       ].includes(s.id as Subject));
     }
 
@@ -530,6 +534,7 @@ export default function App() {
         Subject.RBT,
         Subject.PENDIDIKAN_ISLAM,
         Subject.PENDIDIKAN_MORAL,
+        Subject.PJPK,
         Subject.COMPUTER_SCIENCE,
       ].includes(s.id as Subject));
     }
@@ -548,8 +553,10 @@ export default function App() {
         Subject.GEOGRAPHY,
         Subject.PENDIDIKAN_ISLAM,
         Subject.PENDIDIKAN_MORAL,
+        Subject.PJPK,
         Subject.ECONOMICS,
         Subject.BUSINESS,
+        Subject.ACCOUNTING,
         Subject.COMPUTER_SCIENCE,
       ].includes(s.id as Subject));
     }
@@ -564,6 +571,7 @@ export default function App() {
         Subject.BIOLOGY,
         Subject.ECONOMICS,
         Subject.BUSINESS,
+        Subject.ACCOUNTING,
         Subject.BAHASA_MELAYU,
         Subject.ENGLISH,
       ].includes(s.id as Subject));

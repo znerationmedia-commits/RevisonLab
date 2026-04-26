@@ -1,19 +1,21 @@
 export enum Subject {
   BAHASA_MELAYU = 'Bahasa Melayu',
-  ENGLISH = 'English',
+  ENGLISH = 'English Language',
   MATH = 'Mathematics',
   SCIENCE = 'Science',
   SEJARAH = 'Sejarah (History)',
   GEOGRAPHY = 'Geografi',
   PENDIDIKAN_ISLAM = 'Pendidikan Islam',
   PENDIDIKAN_MORAL = 'Pendidikan Moral',
+  PJPK = 'Pendidikan Jasmani & Kesihatan (PJPK)',
   RBT = 'Reka Bentuk & Teknologi (RBT)',
   PHYSICS = 'Physics',
   CHEMISTRY = 'Chemistry',
   BIOLOGY = 'Biology',
   ADD_MATH = 'Additional Mathematics',
-  ECONOMICS = 'Economics',
-  BUSINESS = 'Business Studies',
+  ECONOMICS = 'Ekonomi',
+  BUSINESS = 'Perniagaan (Business)',
+  ACCOUNTING = 'Prinsip Perakaunan (Accounting)',
   COMPUTER_SCIENCE = 'Computer Science'
 }
 
