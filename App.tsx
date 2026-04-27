@@ -137,7 +137,7 @@ export default function App() {
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [levelUpData, setLevelUpData] = useState<{ prevLevel: number; newLevel: number; xpGained: number } | null>(null);
-  const [currencyConfig, setCurrencyConfig] = useState({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
+  const [currencyConfig, setCurrencyConfig] = useState({ code: 'USD', symbol: '$', amount: 14.9, amountAll: 19.9 });
   const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const [showPromo, setShowPromo] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -266,13 +266,7 @@ export default function App() {
 
       const applyCountry = (code: string) => {
         setDetectedCountry(code);
-        if (code === 'SG') {
-          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
-        } else if (code === 'MY') {
-          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
-        } else {
-          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 9.9, amountAll: 14.9 });
-        }
+        setCurrencyConfig({ code: 'USD', symbol: '$', amount: 14.9, amountAll: 19.9 });
       };
 
       if (testRegion) {
