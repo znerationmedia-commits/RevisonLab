@@ -266,7 +266,13 @@ export default function App() {
 
       const applyCountry = (code: string) => {
         setDetectedCountry(code);
-        setCurrencyConfig({ code: 'USD', symbol: '$', amount: 14.9, amountAll: 19.9 });
+        if (code === 'MY') {
+          setCurrencyConfig({ code: 'MYR', symbol: 'RM', amount: 9.9, amountAll: 14.9 });
+        } else if (code === 'SG') {
+          setCurrencyConfig({ code: 'SGD', symbol: 'S$', amount: 9.9, amountAll: 14.9 });
+        } else {
+          setCurrencyConfig({ code: 'USD', symbol: '$', amount: 14.9, amountAll: 19.9 });
+        }
       };
 
       if (testRegion) {

@@ -19,9 +19,16 @@ router.post('/create-payment-intent', authenticateToken, async (req: any, res: a
     const secretKey = process.env.STRIPE_SECRET_KEY || '';
     const isMockMode = !secretKey.startsWith('sk_') || process.env.STRIPE_MOCK_MODE === 'true';
 
-    // Pricing: Single = 14.9, All = 19.9
-    const finalAmount = planLevel === 'all' ? 1990 : 1490;
-    const finalCurrency = 'usd';
+    // Geolocation Pricing Logic
+    let finalCurrency = currency ? currency.toLowerCase() : 'usd';
+    let finalAmount = planLevel === 'all' ? 1990 : 1490;
+
+    if (finalCurrency === 'myr' || finalCurrency === 'sgd') {
+        finalAmount = planLevel === 'all' ? 1490 : 990;
+    } else {
+        finalCurrency = 'usd';
+        finalAmount = planLevel === 'all' ? 1990 : 1490;
+    }
 
     if (isMockMode) {
         console.warn(`⚠️ STRIPE MOCK MODE ENABLED. Processing ${finalCurrency.toUpperCase()} ${finalAmount / 100} (${interval || 'month'})`);
@@ -129,8 +136,17 @@ router.post('/checkout', authenticateToken, async (req: any, res: any) => {
     const { amount, currency, interval } = req.body;
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const finalAmount = amount || 1990;
-    const finalCurrency = 'usd';
+    let finalCurrency = currency ? currency.toLowerCase() : 'usd';
+    let finalAmount = amount || 1990;
+
+    // Validate and enforce pricing based on currency
+    if (finalCurrency === 'myr' || finalCurrency === 'sgd') {
+        if (finalAmount !== 990 && finalAmount !== 1490) finalAmount = 1490;
+    } else {
+        finalCurrency = 'usd';
+        if (finalAmount !== 1490 && finalAmount !== 1990) finalAmount = 1990;
+    }
+
     const finalInterval = interval === 'year' ? 'year' : 'month';
 
     try {
